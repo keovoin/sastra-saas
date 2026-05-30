@@ -115,7 +115,8 @@ export function Settings() {
       } else {
         const err = await response.json().catch(() => ({}))
         setIsKeyValid(false)
-        toast.error('Connection failed', { description: err?.error?.message || `HTTP ${response.status}. Check key, model, and URL.` })
+        const errMsg = err?.error?.message || err?.error?.metadata?.raw || (typeof err?.error === 'string' ? err.error : null) || `HTTP ${response.status}`
+        toast.error('Connection failed', { description: errMsg })
       }
     } catch (e: unknown) {
       setIsKeyValid(false)
@@ -292,6 +293,7 @@ export function Settings() {
                   { id: 'gpt-3.5-turbo', label: 'GPT-3.5', description: 'Legacy' },
                   { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B', description: 'Groq/Together' },
                   { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', description: 'Groq' },
+                  { id: 'deepseek/deepseek-v4-flash:free', label: 'DeepSeek V4 Flash', description: 'OpenRouter (free)' },
                   { id: 'claude-3.5-sonnet', label: 'Claude 3.5', description: 'OpenRouter' },
                 ].map((model) => (
                   <button

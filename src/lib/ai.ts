@@ -90,7 +90,12 @@ export async function askAI(prompt: string): Promise<AIResponse> {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      return { success: false, content: '', error: err?.error?.message || `API error: ${response.status}` }
+      // OpenRouter returns detailed errors in error.metadata.raw or error.message
+      const errMsg = err?.error?.message
+        || err?.error?.metadata?.raw
+        || (typeof err?.error === 'string' ? err.error : null)
+        || `API error ${response.status}: ${response.statusText}`
+      return { success: false, content: '', error: errMsg }
     }
 
     const data = await response.json()
