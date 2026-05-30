@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Target, ShieldAlert, FileText, Settings,
   ChevronLeft, ChevronRight, UserPlus, LogOut, User, Bell,
   ChevronDown, Loader2, Printer, FolderOpen, Plus, Moon, Sun, Menu, X,
+  Activity, Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -22,6 +23,8 @@ const navItems = [
   { id: 'strategy', label: 'Strategy (SWOT)', icon: Target },
   { id: 'risks', label: 'Risk Manager', icon: ShieldAlert },
   { id: 'charters', label: 'Project Charters', icon: FileText },
+  { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles },
+  { id: 'activity', label: 'Activity Feed', icon: Activity },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
@@ -30,6 +33,9 @@ const breadcrumbMap: Record<string, string> = {
   strategy: 'Strategy Board',
   risks: 'Risk Manager',
   charters: 'Project Charters',
+  'ai-assistant': 'AI Assistant',
+  activity: 'Activity Feed',
+  profile: 'Profile',
   settings: 'Settings',
 }
 
