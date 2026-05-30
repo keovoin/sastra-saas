@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useStore } from '@/store/useStore'
+import { useBusinessOS, PERSONAS } from '@/context/BusinessContext'
 import { Button } from '@/components/ui/button'
 import {
   LayoutDashboard,
@@ -14,6 +14,10 @@ import {
   User,
   Bell,
   ChevronDown,
+  Loader2,
+  Printer,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -21,6 +25,7 @@ interface LayoutProps {
   children: React.ReactNode
   currentPage: string
   onNavigate: (page: string) => void
+  onExport: () => void
 }
 
 const navItems = [
@@ -39,18 +44,24 @@ const breadcrumbMap: Record<string, string> = {
   settings: 'Settings',
 }
 
-export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { sidebarCollapsed, toggleSidebar } = useStore()
+export function Layout({ children, currentPage, onNavigate, onExport }: LayoutProps) {
+  const { sidebarCollapsed, toggleSidebar, activeUser, switchUser, isSaving, isAdmin } = useBusinessOS()
   const [profileOpen, setProfileOpen] = useState(false)
 
   const handleInvite = () => {
+    if (!isAdmin) {
+      toast.error('Permission denied', { description: 'Only admins can invite members.' })
+      return
+    }
     toast.success('Invitation sent to team member', {
       description: 'They will receive an email with access instructions.',
     })
   }
 
+  const otherUser = PERSONAS.find((p) => p.id !== activeUser.id)
+
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50 print:hidden">
       {/* Sidebar */}
       <aside
         className={`${
@@ -97,8 +108,40 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           })}
         </nav>
 
-        {/* Collapse Toggle */}
-        <div className="border-t border-slate-200 p-2">
+        {/* DevTools Toggle - Bottom Left */}
+        <div className="border-t border-slate-200 p-2 space-y-1">
+          {!sidebarCollapsed && (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">DevTools</span>
+              </div>
+              <p className="text-xs text-slate-600 mb-2 font-medium">
+                {activeUser.name}
+                <span className={`ml-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                  isAdmin ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {activeUser.role.toUpperCase()}
+                </span>
+              </p>
+              <button
+                onClick={() => switchUser(otherUser?.id || 'user-a')}
+                className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <span>Switch to {otherUser?.name}</span>
+                {isAdmin ? <ToggleLeft className="h-3.5 w-3.5 text-slate-400" /> : <ToggleRight className="h-3.5 w-3.5 text-violet-500" />}
+              </button>
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => switchUser(otherUser?.id || 'user-a')}
+              className="flex w-full items-center justify-center rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              title={`Switch to ${otherUser?.name} (${otherUser?.role})`}
+            >
+              {isAdmin ? <ToggleLeft className="h-4 w-4" /> : <ToggleRight className="h-4 w-4" />}
+            </button>
+          )}
           <button
             onClick={toggleSidebar}
             className="flex w-full items-center justify-center rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
@@ -117,14 +160,30 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             <span className="text-slate-400">Sastra</span>
             <span className="text-slate-300">/</span>
             <span className="font-medium text-slate-700">{breadcrumbMap[currentPage] || 'Dashboard'}</span>
+            {isSaving && (
+              <span className="ml-3 flex items-center gap-1.5 text-xs text-slate-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Saving...
+              </span>
+            )}
           </div>
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            <Button size="sm" onClick={handleInvite} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Invite Member
-            </Button>
+            {/* Export Button */}
+            {(currentPage === 'risks' || currentPage === 'charters') && (
+              <Button variant="outline" size="sm" onClick={onExport} className="gap-2">
+                <Printer className="h-4 w-4" />
+                Export / Print
+              </Button>
+            )}
+
+            {isAdmin && (
+              <Button size="sm" onClick={handleInvite} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Invite Member
+              </Button>
+            )}
 
             <button className="relative rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
               <Bell className="h-5 w-5" />
@@ -137,22 +196,30 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex items-center gap-2 rounded-md p-1.5 hover:bg-slate-100 transition-colors"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-medium text-white">
-                  JW
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${activeUser.gradient} text-xs font-medium text-white`}>
+                  {activeUser.initials}
                 </div>
-                {!sidebarCollapsed && (
-                  <div className="hidden sm:flex items-center gap-1">
-                    <span className="text-sm font-medium text-slate-700">Jennifer W.</span>
-                    <ChevronDown className="h-3 w-3 text-slate-400" />
-                  </div>
-                )}
+                <div className="hidden sm:flex items-center gap-1">
+                  <span className="text-sm font-medium text-slate-700">{activeUser.name}</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    isAdmin ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {activeUser.role.toUpperCase()}
+                  </span>
+                  <ChevronDown className="h-3 w-3 text-slate-400" />
+                </div>
               </button>
 
               {profileOpen && (
                 <div className="absolute right-0 top-12 z-50 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
                   <div className="border-b border-slate-100 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-900">Jennifer Walsh</p>
-                    <p className="text-xs text-slate-500">jennifer@sastra.io</p>
+                    <p className="text-sm font-medium text-slate-900">{activeUser.name}</p>
+                    <p className="text-xs text-slate-500">{activeUser.email}</p>
+                    <p className={`mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded inline-block ${
+                      isAdmin ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {activeUser.role === 'admin' ? 'Administrator' : 'Viewer (Read Only)'}
+                    </p>
                   </div>
                   <button className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
                     <User className="h-4 w-4" />

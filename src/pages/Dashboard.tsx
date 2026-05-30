@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore } from '@/store/useStore'
+import { useBusinessOS } from '@/context/BusinessContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -13,12 +13,10 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   Area,
   AreaChart,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Target, ShieldAlert, FileText, Activity } from 'lucide-react'
+import { TrendingUp, TrendingDown, Target, ShieldAlert, FileText, Activity, ListChecks } from 'lucide-react'
 
 const revenueData = [
   { month: 'Jan', revenue: 42000, target: 40000 },
@@ -31,20 +29,31 @@ const revenueData = [
   { month: 'Aug', revenue: 62000, target: 55000 },
 ]
 
-const riskTrendData = [
-  { week: 'W1', active: 5, mitigated: 2 },
-  { week: 'W2', active: 6, mitigated: 3 },
-  { week: 'W3', active: 4, mitigated: 4 },
-  { week: 'W4', active: 5, mitigated: 5 },
-  { week: 'W5', active: 4, mitigated: 6 },
-  { week: 'W6', active: 3, mitigated: 7 },
-]
+const HEATMAP_COLORS = ['#10b981', '#f59e0b', '#ef4444']
+const SWOT_COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f97316']
 
-const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1']
 
 export function Dashboard() {
-  const { swotItems, risks, charters } = useStore()
+  const { swotItems, risks, charters, activeUser } = useBusinessOS()
 
+  // ─── Reactive Widget A: Risk Heatmap (real data) ─────────────────────────
+  const lowSeverityRisks = risks.filter((r) => r.severity <= 9).length
+  const medSeverityRisks = risks.filter((r) => r.severity > 9 && r.severity <= 15).length
+  const highSeverityRisks = risks.filter((r) => r.severity > 15).length
+
+  const riskHeatmapData = [
+    { name: 'Low (≤9)', value: lowSeverityRisks },
+    { name: 'Medium (10-15)', value: medSeverityRisks },
+    { name: 'High (>15)', value: highSeverityRisks },
+  ]
+
+  // ─── Reactive Widget B: Task Velocity (derived from SWOT) ────────────────
+  const pendingHighPriority = swotItems.filter((i) => i.priority === 'High').length
+  const pendingMedPriority = swotItems.filter((i) => i.priority === 'Medium').length
+  const pendingLowPriority = swotItems.filter((i) => i.priority === 'Low').length
+  const totalPendingTasks = swotItems.length
+
+  // ─── SWOT Distribution (real data) ──────────────────────────────────────
   const swotDistribution = [
     { name: 'Strengths', value: swotItems.filter((i) => i.category === 'strengths').length },
     { name: 'Weaknesses', value: swotItems.filter((i) => i.category === 'weaknesses').length },
@@ -52,8 +61,14 @@ export function Dashboard() {
     { name: 'Threats', value: swotItems.filter((i) => i.category === 'threats').length },
   ]
 
+  // ─── Real risk status data for bar chart ────────────────────────────────
+  const riskStatusData = [
+    { status: 'Active', count: risks.filter((r) => r.status === 'Active').length },
+    { status: 'Watch', count: risks.filter((r) => r.status === 'Watch').length },
+    { status: 'Mitigated', count: risks.filter((r) => r.status === 'Mitigated').length },
+  ]
+
   const activeRisks = risks.filter((r) => r.status === 'Active').length
-  const highSeverityRisks = risks.filter((r) => r.severity > 15).length
 
   return (
     <div className="space-y-6">
@@ -61,9 +76,10 @@ export function Dashboard() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Business Dashboard</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Welcome back, Jennifer. Here's an overview of your business operations.
+          Welcome back, {activeUser.name.split(' ')[0]}. Here's an overview of your business operations.
         </p>
       </div>
+
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -137,7 +153,8 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Charts Row */}
+
+      {/* Charts Row 1: Revenue + Risk Heatmap */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Revenue Chart */}
         <Card>
@@ -164,32 +181,122 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Risk Trend */}
+        {/* Widget A: Risk Heatmap - REAL DATA */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Risk Trend</CardTitle>
-            <CardDescription>Active vs mitigated risks over 6 weeks</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Risk Severity Heatmap</CardTitle>
+                <CardDescription>Distribution by severity tier (real-time)</CardDescription>
+              </div>
+              <Badge variant="secondary" className="text-[10px]">LIVE</Badge>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={riskTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                  <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                <PieChart>
+                  <Pie
+                    data={riskHeatmapData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {riskHeatmapData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={HEATMAP_COLORS[index % HEATMAP_COLORS.length]} />
+                    ))}
+                  </Pie>
                   <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                  <Bar dataKey="active" fill="#ef4444" radius={[4, 4, 0, 0]} name="Active" />
-                  <Bar dataKey="mitigated" fill="#10b981" radius={[4, 4, 0, 0]} name="Mitigated" />
-                </BarChart>
+                </PieChart>
               </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap justify-center gap-4 mt-2">
+              {riskHeatmapData.map((entry, index) => (
+                <div key={entry.name} className="flex items-center gap-1.5 text-xs">
+                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: HEATMAP_COLORS[index] }} />
+                  <span className="text-slate-600">{entry.name}: <span className="font-bold">{entry.value}</span></span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Bottom Row */}
+
+      {/* Row 2: Task Velocity + Risk Status + SWOT */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* SWOT Distribution */}
+        {/* Widget B: Task Velocity - REAL DATA */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Task Velocity</CardTitle>
+                <CardDescription>Pending items from SWOT analysis</CardDescription>
+              </div>
+              <Badge variant="secondary" className="text-[10px]">LIVE</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="rounded-lg bg-indigo-50 p-3">
+                <ListChecks className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-slate-900">{totalPendingTasks}</p>
+                <p className="text-xs text-slate-500">Pending Strategic Tasks</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">High Priority</span>
+                <span className="font-bold text-red-600">{pendingHighPriority}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full rounded-full bg-red-500" style={{ width: `${totalPendingTasks ? (pendingHighPriority / totalPendingTasks) * 100 : 0}%` }} />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Medium Priority</span>
+                <span className="font-bold text-amber-600">{pendingMedPriority}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full rounded-full bg-amber-500" style={{ width: `${totalPendingTasks ? (pendingMedPriority / totalPendingTasks) * 100 : 0}%` }} />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Low Priority</span>
+                <span className="font-bold text-slate-600">{pendingLowPriority}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full rounded-full bg-slate-400" style={{ width: `${totalPendingTasks ? (pendingLowPriority / totalPendingTasks) * 100 : 0}%` }} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Risk Status Bar Chart - REAL DATA */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Risk by Status</CardTitle>
+            <CardDescription>Current distribution across statuses</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={riskStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="status" tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                  <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#6366f1" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SWOT Distribution - REAL DATA */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">SWOT Distribution</CardTitle>
@@ -199,17 +306,9 @@ export function Dashboard() {
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={swotDistribution}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={70}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
+                  <Pie data={swotDistribution} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={4} dataKey="value">
                     {swotDistribution.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={SWOT_COLORS[index % SWOT_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
@@ -219,56 +318,59 @@ export function Dashboard() {
             <div className="flex flex-wrap justify-center gap-3 mt-2">
               {swotDistribution.map((entry, index) => (
                 <div key={entry.name} className="flex items-center gap-1.5 text-xs">
-                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index] }} />
+                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SWOT_COLORS[index] }} />
                   <span className="text-slate-600">{entry.name} ({entry.value})</span>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-
-        {/* Top Risks */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Top Risks by Severity</CardTitle>
-            <CardDescription>Highest impact items requiring attention</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {risks
-                .sort((a, b) => b.severity - a.severity)
-                .slice(0, 4)
-                .map((risk) => (
-                  <div
-                    key={risk.id}
-                    className="flex items-center justify-between rounded-md border border-slate-100 p-3"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="font-mono text-xs text-slate-400">{risk.id}</span>
-                      <p className="text-sm text-slate-700 truncate">{risk.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge
-                        variant={risk.status === 'Active' ? 'danger' : risk.status === 'Watch' ? 'warning' : 'success'}
-                      >
-                        {risk.status}
-                      </Badge>
-                      <span
-                        className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                          risk.severity > 15
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-amber-100 text-amber-700'
-                        }`}
-                      >
-                        {risk.severity}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+
+      {/* Bottom Row: Top Risks */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Top Risks by Severity</CardTitle>
+          <CardDescription>Highest impact items requiring attention</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[...risks]
+              .sort((a, b) => b.severity - a.severity)
+              .slice(0, 5)
+              .map((risk) => (
+                <div
+                  key={risk.id}
+                  className="flex items-center justify-between rounded-md border border-slate-100 p-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-mono text-xs text-slate-400">{risk.id}</span>
+                    <p className="text-sm text-slate-700 truncate">{risk.description}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge
+                      variant={risk.status === 'Active' ? 'danger' : risk.status === 'Watch' ? 'warning' : 'success'}
+                    >
+                      {risk.status}
+                    </Badge>
+                    <span
+                      className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                        risk.severity > 15
+                          ? 'bg-red-100 text-red-700'
+                          : risk.severity > 9
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}
+                    >
+                      {risk.severity}
+                    </span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
