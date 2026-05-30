@@ -40,6 +40,8 @@ export function RiskRegister() {
   const [formImpact, setFormImpact] = useState(3)
   const [formOwner, setFormOwner] = useState('')
   const [formStatus, setFormStatus] = useState<RiskStatus>('Active')
+  const [formMitigation, setFormMitigation] = useState('')
+  const [formControls, setFormControls] = useState('')
   const [isAILoading, setIsAILoading] = useState(false)
 
   const handleAISuggestRisks = async () => {
@@ -75,6 +77,8 @@ Format: {"risks": [{"description": "...", "probability": 3, "impact": 4, "owner_
     setFormImpact(3)
     setFormOwner('')
     setFormStatus('Active')
+    setFormMitigation('')
+    setFormControls('')
     setModalOpen(true)
   }
 
@@ -86,6 +90,8 @@ Format: {"risks": [{"description": "...", "probability": 3, "impact": 4, "owner_
     setFormImpact(risk.impact)
     setFormOwner(risk.owner_name)
     setFormStatus(risk.status)
+    setFormMitigation((risk as any).mitigation || '')
+    setFormControls((risk as any).controls || '')
     setModalOpen(true)
   }
 
@@ -325,6 +331,14 @@ Format: {"risks": [{"description": "...", "probability": 3, "impact": 4, "owner_
               <div className="space-y-2">
                 <Label htmlFor="risk-owner">Owner</Label>
                 <Input id="risk-owner" value={formOwner} onChange={(e) => setFormOwner(e.target.value)} placeholder="Full name of risk owner..." />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="risk-mitigation">Mitigation Action</Label>
+                <Input id="risk-mitigation" value={formMitigation} onChange={(e) => setFormMitigation(e.target.value)} placeholder="Planned action to reduce this risk..." />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="risk-controls">Current Controls</Label>
+                <Input id="risk-controls" value={formControls} onChange={(e) => setFormControls(e.target.value)} placeholder="Existing controls in place..." />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>

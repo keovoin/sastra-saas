@@ -25,6 +25,15 @@ import { InvoiceTracker } from '@/pages/InvoiceTracker'
 import { PulseSurvey } from '@/pages/PulseSurvey'
 import { BoardDeckGenerator } from '@/pages/BoardDeckGenerator'
 import { OrgManagement } from '@/pages/OrgManagement'
+import { ProjectBoard } from '@/pages/ProjectBoard'
+import { OnboardingChecklist } from '@/pages/OnboardingChecklist'
+import { OffboardingChecklist } from '@/pages/OffboardingChecklist'
+import { EmployeeMovement } from '@/pages/EmployeeMovement'
+import { CalendarView } from '@/pages/CalendarView'
+import { Messaging } from '@/pages/Messaging'
+import { BillingPlans } from '@/pages/BillingPlans'
+import { StaffWorkload } from '@/pages/StaffWorkload'
+import { UserProfile } from '@/pages/UserProfile'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Toaster } from 'sonner'
 import { SpeedInsights } from '@vercel/speed-insights/react'
@@ -42,6 +51,9 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard': return <Dashboard />
+      case 'project-board': return <ProjectBoard />
+      case 'calendar': return <CalendarView />
+      case 'messaging': return <Messaging />
       case 'strategy': return <StrategyBoard />
       case 'risks': return <RiskRegister />
       case 'charters': return <ProjectCharters />
@@ -57,8 +69,14 @@ function AuthenticatedApp({ session }: { session: Session }) {
       case 'pulse': return <PulseSurvey />
       case 'board-deck': return <BoardDeckGenerator />
       case 'org': return <OrgManagement />
+      case 'onboarding': return <OnboardingChecklist />
+      case 'offboarding': return <OffboardingChecklist />
+      case 'employee-movement': return <EmployeeMovement />
+      case 'workload': return <StaffWorkload />
       case 'activity': return <ActivityFeed />
       case 'ai-assistant': return <AIAssistant />
+      case 'user-profile': return <UserProfile />
+      case 'billing': return <BillingPlans />
       case 'profile': return <ProfilePage />
       case 'settings': return <Settings />
       default: return <Dashboard />

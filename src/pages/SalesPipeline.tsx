@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { Pipette, Plus, Sparkles, ArrowRight, DollarSign, Users } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Pipette, Plus, Sparkles, DollarSign, Users, GripVertical, Edit2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAI } from '@/lib/ai'
 
@@ -30,32 +31,45 @@ const STAGES: { id: Stage; label: string; color: string }[] = [
   { id: 'closed-lost', label: 'Closed Lost', color: 'bg-red-500/10 text-red-600 border-red-200' },
 ]
 
-const initialDeals: Deal[] = [
-  { id: '1', company: 'Acme Corp', value: 48000, contact: 'Sarah Chen', probability: 20, nextAction: 'Schedule discovery call', date: '2024-03-15', stage: 'lead' },
-  { id: '2', company: 'TechFlow Inc', value: 125000, contact: 'Marcus Rivera', probability: 40, nextAction: 'Send case study', date: '2024-03-12', stage: 'qualified' },
-  { id: '3', company: 'DataVault Systems', value: 85000, contact: 'Emily Watson', probability: 60, nextAction: 'Finalize proposal deck', date: '2024-03-10', stage: 'proposal' },
-  { id: '4', company: 'CloudNine Solutions', value: 200000, contact: 'James Park', probability: 75, nextAction: 'Negotiate payment terms', date: '2024-03-08', stage: 'negotiation' },
-  { id: '5', company: 'Quantum Analytics', value: 67000, contact: 'Lisa Thompson', probability: 90, nextAction: 'Process signed contract', date: '2024-02-28', stage: 'closed-won' },
-  { id: '6', company: 'NovaTech Labs', value: 35000, contact: 'Alex Kim', probability: 25, nextAction: 'Follow up next quarter', date: '2024-03-01', stage: 'lead' },
-  { id: '7', company: 'Meridian Health', value: 150000, contact: 'David Okafor', probability: 0, nextAction: 'Lost to competitor', date: '2024-02-20', stage: 'closed-lost' },
-  { id: '8', company: 'Synapse Digital', value: 92000, contact: 'Rachel Green', probability: 55, nextAction: 'Demo follow-up meeting', date: '2024-03-14', stage: 'proposal' },
-]
+const initialDeals: Deal[] = []
 
 export function SalesPipeline() {
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [showForm, setShowForm] = useState(false)
+  const [detailDeal, setDetailDeal] = useState<Deal | null>(null)
   const [aiLoading, setAiLoading] = useState<string | null>(null)
-  const [newDeal, setNewDeal] = useState({ company: '', value: '', contact: '', nextAction: '', probability: '' })
+  const [draggedDealId, setDraggedDealId] = useState<string | null>(null)
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null)
+  const [newDeal, setNewDeal] = useState({ company: '', value: '', contact: '', nextAction: '', probability: '', assignee: '' })
 
-  const moveDeal = (dealId: string, direction: 'forward' | 'backward') => {
-    setDeals(prev => prev.map(deal => {
-      if (deal.id !== dealId) return deal
-      const currentIdx = STAGES.findIndex(s => s.id === deal.stage)
-      const nextIdx = direction === 'forward' ? currentIdx + 1 : currentIdx - 1
-      if (nextIdx < 0 || nextIdx >= STAGES.length) return deal
-      toast.success(`Moved ${deal.company} to ${STAGES[nextIdx].label}`)
-      return { ...deal, stage: STAGES[nextIdx].id }
-    }))
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, dealId: string) => {
+    setDraggedDealId(dealId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', dealId)
+    ;(e.currentTarget as HTMLElement).style.opacity = '0.5'
+  }
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).style.opacity = '1'
+    setDraggedDealId(null)
+    setDragOverStage(null)
+  }
+  const handleDragOver = (e: React.DragEvent, stageId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverStage(stageId)
+  }
+  const handleDrop = (e: React.DragEvent, stageId: Stage) => {
+    e.preventDefault()
+    const dealId = e.dataTransfer.getData('text/plain')
+    if (dealId) {
+      setDeals(prev => prev.map(d => d.id === dealId ? { ...d, stage: stageId } : d))
+      const deal = deals.find(d => d.id === dealId)
+      const stage = STAGES.find(s => s.id === stageId)
+      if (deal && deal.stage !== stageId) toast.success(`Moved ${deal.company} to ${stage?.label}`)
+    }
+    setDragOverStage(null)
+    setDraggedDealId(null)
   }
 
   const addDeal = () => {
@@ -74,7 +88,7 @@ export function SalesPipeline() {
       stage: 'lead',
     }
     setDeals(prev => [...prev, deal])
-    setNewDeal({ company: '', value: '', contact: '', nextAction: '', probability: '' })
+    setNewDeal({ company: '', value: '', contact: '', nextAction: '', probability: '', assignee: '' })
     setShowForm(false)
     toast.success(`Added ${deal.company} to pipeline`)
   }
@@ -154,61 +168,90 @@ Suggest a specific, actionable next step to move this deal forward. Be concise (
         </Card>
       </div>
 
-      {/* Add Deal Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>New Deal</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Company Name</Label>
-                <Input placeholder="Acme Corp" value={newDeal.company} onChange={e => setNewDeal(p => ({ ...p, company: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Deal Value ($)</Label>
-                <Input type="number" placeholder="50000" value={newDeal.value} onChange={e => setNewDeal(p => ({ ...p, value: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Contact Name</Label>
-                <Input placeholder="John Doe" value={newDeal.contact} onChange={e => setNewDeal(p => ({ ...p, contact: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Probability (%)</Label>
-                <Input type="number" placeholder="20" value={newDeal.probability} onChange={e => setNewDeal(p => ({ ...p, probability: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Next Action</Label>
-                <Input placeholder="Schedule discovery call" value={newDeal.nextAction} onChange={e => setNewDeal(p => ({ ...p, nextAction: e.target.value }))} />
-              </div>
-              <div className="flex items-end">
-                <Button onClick={addDeal} className="w-full">Add to Pipeline</Button>
-              </div>
+      {/* Add Deal Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Add New Deal</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Company Name *</Label><Input placeholder="Acme Corp" value={newDeal.company} onChange={e => setNewDeal(p => ({ ...p, company: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Deal Value ($) *</Label><Input type="number" placeholder="50000" value={newDeal.value} onChange={e => setNewDeal(p => ({ ...p, value: e.target.value }))} /></div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Contact Name *</Label><Input placeholder="John Doe" value={newDeal.contact} onChange={e => setNewDeal(p => ({ ...p, contact: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Probability (%)</Label><Input type="number" placeholder="20" value={newDeal.probability} onChange={e => setNewDeal(p => ({ ...p, probability: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Next Action</Label><Input placeholder="Schedule discovery call" value={newDeal.nextAction} onChange={e => setNewDeal(p => ({ ...p, nextAction: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Assign To</Label><Input placeholder="Team member" value={newDeal.assignee} onChange={e => setNewDeal(p => ({ ...p, assignee: e.target.value }))} /></div>
+            </div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={addDeal}>Add to Pipeline</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Kanban Board */}
+      {/* Deal Detail Dialog */}
+      <Dialog open={!!detailDeal} onOpenChange={() => setDetailDeal(null)}>
+        <DialogContent>
+          {detailDeal && (
+            <>
+              <DialogHeader><DialogTitle>{detailDeal.company}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-muted-foreground">Value:</span> <span className="font-medium">${detailDeal.value.toLocaleString()}</span></div>
+                  <div><span className="text-muted-foreground">Contact:</span> <span className="font-medium">{detailDeal.contact}</span></div>
+                  <div><span className="text-muted-foreground">Stage:</span> <Badge variant="secondary">{STAGES.find(s => s.id === detailDeal.stage)?.label}</Badge></div>
+                  <div><span className="text-muted-foreground">Probability:</span> <span className="font-medium">{detailDeal.probability}%</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">Next Action:</span> <span className="font-medium">{detailDeal.nextAction}</span></div>
+                </div>
+                {isAIConfigured() && (
+                  <Button variant="outline" size="sm" onClick={() => suggestNextAction(detailDeal)} disabled={aiLoading === detailDeal.id}>
+                    <Sparkles className="h-3 w-3 mr-1" />{aiLoading === detailDeal.id ? 'Thinking...' : 'AI Suggest Next Action'}
+                  </Button>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" className="text-red-500" onClick={() => { setDeals(prev => prev.filter(d => d.id !== detailDeal.id)); setDetailDeal(null); toast.success('Deal removed') }}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+                <Button variant="outline" onClick={() => setDetailDeal(null)}>Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Kanban Board with Drag & Drop */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {STAGES.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage.id)
           const stageValue = stageDeals.reduce((sum, d) => sum + d.value, 0)
+          const isDragOver = dragOverStage === stage.id
           return (
-            <div key={stage.id} className="space-y-3">
-              <div className={`p-3 rounded-lg border ${stage.color}`}>
+            <div key={stage.id} className="space-y-3"
+              onDragOver={(e) => handleDragOver(e, stage.id)}
+              onDragLeave={() => setDragOverStage(null)}
+              onDrop={(e) => handleDrop(e, stage.id)}
+            >
+              <div className={`p-3 rounded-lg border ${stage.color} transition-all ${isDragOver ? 'ring-2 ring-violet-400 scale-[1.02]' : ''}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{stage.label}</span>
                   <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
                 </div>
                 <p className="text-xs mt-1 opacity-75">${stageValue.toLocaleString()}</p>
               </div>
-              <div className="space-y-2 min-h-[200px]">
+              <div className={`space-y-2 min-h-[200px] rounded-lg p-1 transition-all ${isDragOver ? 'bg-violet-50/50 dark:bg-violet-900/10' : ''}`}>
+                {stageDeals.length === 0 && (
+                  <div className="flex items-center justify-center h-20 text-xs text-muted-foreground border border-dashed rounded-md">Drop deals here</div>
+                )}
                 {stageDeals.map(deal => (
-                  <Card key={deal.id} className="p-3 space-y-2">
+                  <Card key={deal.id} className={`p-3 space-y-2 cursor-pointer hover-lift ${draggedDealId === deal.id ? 'opacity-50' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, deal.id)}
+                    onDragEnd={handleDragEnd}
+                    onClick={() => setDetailDeal(deal)}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm text-foreground truncate">{deal.company}</span>
+                      <GripVertical className="h-3 w-3 text-muted-foreground/50 cursor-grab" />
+                      <span className="font-medium text-sm text-foreground truncate flex-1 ml-1">{deal.company}</span>
                     </div>
                     <p className="text-sm font-semibold text-foreground">${deal.value.toLocaleString()}</p>
                     <p className="text-xs text-muted-foreground">{deal.contact}</p>
@@ -219,31 +262,6 @@ Suggest a specific, actionable next step to move this deal forward. Be concise (
                       <span className="text-xs text-muted-foreground">{deal.probability}%</span>
                     </div>
                     <p className="text-xs text-muted-foreground italic">{deal.nextAction}</p>
-                    <p className="text-xs text-muted-foreground">{deal.date}</p>
-                    <div className="flex gap-1 flex-wrap">
-                      {stage.id !== 'lead' && stage.id !== 'closed-lost' && (
-                        <Button variant="ghost" size="sm" className="h-6 text-xs px-1" onClick={() => moveDeal(deal.id, 'backward')}>
-                          ← Back
-                        </Button>
-                      )}
-                      {stage.id !== 'closed-won' && stage.id !== 'closed-lost' && (
-                        <Button variant="ghost" size="sm" className="h-6 text-xs px-1" onClick={() => moveDeal(deal.id, 'forward')}>
-                          Next →
-                        </Button>
-                      )}
-                    </div>
-                    {isAIConfigured() && stage.id !== 'closed-won' && stage.id !== 'closed-lost' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-7 text-xs"
-                        disabled={aiLoading === deal.id}
-                        onClick={() => suggestNextAction(deal)}
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        {aiLoading === deal.id ? 'Thinking...' : 'AI Suggest'}
-                      </Button>
-                    )}
                   </Card>
                 ))}
               </div>
@@ -251,6 +269,16 @@ Suggest a specific, actionable next step to move this deal forward. Be concise (
           )
         })}
       </div>
+
+      {/* Empty state */}
+      {deals.length === 0 && (
+        <div className="text-center py-12 animate-fade-in-up">
+          <Pipette className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+          <h3 className="text-lg font-medium">No deals yet</h3>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">Add your first deal to start tracking your pipeline</p>
+          <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4 mr-1" />Add First Deal</Button>
+        </div>
+      )}
     </div>
   )
 }
