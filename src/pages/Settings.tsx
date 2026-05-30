@@ -38,6 +38,9 @@ export function Settings() {
   const [provider, setProvider] = useState('openai')
   const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null)
   const [isTestingKey, setIsTestingKey] = useState(false)
+  const [proxyEnabled, setProxyEnabled] = useState(() => {
+    try { return localStorage.getItem('sastra-ai-proxy') !== 'false' } catch { return true }
+  })
 
   useEffect(() => {
     setApiKey(getStoredApiKey())
@@ -68,33 +71,55 @@ export function Settings() {
     }
     setIsTestingKey(true)
     try {
-      // Test with a real chat completion request (tiny prompt)
-      const testUrl = baseUrl.replace(/\/$/, '') + '/chat/completions'
-      const response = await fetch(testUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [{ role: 'user', content: 'Hi' }],
-          max_tokens: 5,
-        }),
-      })
+      let response: Response
+
+      if (proxyEnabled) {
+        response = await fetch('/api/ai-proxy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-AI-Base-URL': baseUrl.trim(),
+            'X-AI-Key': apiKey.trim(),
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 5,
+          }),
+        })
+      } else {
+        const testUrl = baseUrl.replace(/\/$/, '') + '/chat/completions'
+        response = await fetch(testUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`,
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 5,
+          }),
+        })
+      }
+
       if (response.ok) {
         setIsKeyValid(true)
-        toast.success('Connection successful!', { description: `Model "${selectedModel}" responded via ${baseUrl}` })
+        toast.success('Connection successful!', { description: `Model "${selectedModel}" responded${proxyEnabled ? ' via proxy' : ''}.` })
       } else {
         const err = await response.json().catch(() => ({}))
         setIsKeyValid(false)
-        toast.error('Connection failed', { description: err?.error?.message || `HTTP ${response.status}. Check your key, model, and endpoint URL.` })
+        toast.error('Connection failed', { description: err?.error?.message || `HTTP ${response.status}. Check key, model, and URL.` })
       }
     } catch (e: unknown) {
       setIsKeyValid(false)
       const msg = e instanceof Error ? e.message : 'Unknown error'
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        toast.error('Cannot reach endpoint', { description: 'CORS error — this provider may not support direct browser requests. Groq, Together AI, and OpenRouter all support CORS. Make sure the URL ends with /v1.' })
+        if (proxyEnabled) {
+          toast.error('Proxy not reachable', { description: 'The AI proxy is only available after deploying to Vercel. For local dev, disable proxy and use OpenRouter (it supports browser CORS).' })
+        } else {
+          toast.error('CORS blocked by provider', { description: 'Groq/Together AI block browser requests. Enable "Use Server Proxy" toggle above and deploy to Vercel.' })
+        }
       } else {
         toast.error('Connection failed', { description: msg })
       }
@@ -210,8 +235,34 @@ export function Settings() {
               />
               <p className="text-xs text-muted-foreground">
                 Must be OpenAI-compatible (supports /chat/completions endpoint).
-                {provider === 'groq' && <span className="block mt-1 text-amber-600">Note: The "/openai/" in Groq's URL is just their compatibility path — it still uses YOUR Groq key and Groq models, not OpenAI.</span>}
+                {provider === 'groq' && <span className="block mt-1 text-amber-600">Note: "/openai/" in Groq's URL is just their compatibility path — it still uses YOUR Groq key and Groq models, not OpenAI.</span>}
               </p>
+            </div>
+
+            {/* Proxy Toggle */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Use Server Proxy</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Required for Groq, Together AI, and most providers (they block browser CORS requests)</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const current = localStorage.getItem('sastra-ai-proxy') !== 'false'
+                    localStorage.setItem('sastra-ai-proxy', current ? 'false' : 'true')
+                    setProxyEnabled(!current)
+                    toast.success(current ? 'Direct mode (only works with OpenRouter/Ollama)' : 'Proxy enabled (works with all providers on Vercel)')
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${proxyEnabled ? 'bg-violet-600' : 'bg-muted'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${proxyEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              {!proxyEnabled && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">⚠️ Direct mode only works with providers that allow CORS (OpenRouter, Ollama local). Groq and Together AI will fail without proxy.</p>
+                </div>
+              )}
             </div>
 
             {/* Model Selection */}

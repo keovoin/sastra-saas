@@ -11,6 +11,11 @@ export function isAIConfigured(): boolean {
   return !!getStoredApiKey()
 }
 
+// Check if proxy mode is enabled (needed for Groq, Together AI, etc)
+function useProxy(): boolean {
+  try { return localStorage.getItem('sastra-ai-proxy') === 'true' } catch { return true }
+}
+
 export async function askAI(prompt: string): Promise<AIResponse> {
   const apiKey = getStoredApiKey()
   const model = getStoredModel()
@@ -28,25 +33,44 @@ export async function askAI(prompt: string): Promise<AIResponse> {
   // Sanitize prompt to prevent injection
   const cleanPrompt = sanitizeInput(prompt)
 
+  const requestBody = JSON.stringify({
+    model,
+    messages: [{ role: 'user', content: cleanPrompt }],
+    temperature: 0.7,
+    max_tokens: 1500,
+  })
+
   try {
-    const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: cleanPrompt }],
-        temperature: 0.7,
-        max_tokens: 1500,
-      }),
-      signal: controller.signal,
-    })
+    let response: Response
+
+    if (useProxy()) {
+      // Route through Vercel Edge Function proxy to avoid CORS
+      response = await fetch('/api/ai-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-AI-Base-URL': baseUrl,
+          'X-AI-Key': apiKey,
+        },
+        body: requestBody,
+        signal: controller.signal,
+      })
+    } else {
+      // Direct request (only works with providers that allow CORS, like OpenRouter)
+      const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: requestBody,
+        signal: controller.signal,
+      })
+    }
 
     clearTimeout(timeout)
 
@@ -64,7 +88,13 @@ export async function askAI(prompt: string): Promise<AIResponse> {
     }
     const message = error instanceof Error ? error.message : 'Connection failed'
     if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
-      return { success: false, content: '', error: 'Cannot reach AI endpoint (CORS/network error). Go to Settings and verify your provider URL is correct. Groq URL should be: https://api.groq.com/openai/v1' }
+      return {
+        success: false,
+        content: '',
+        error: useProxy()
+          ? 'Proxy request failed. Make sure you are deployed on Vercel (the proxy only works in production). For local dev, use OpenRouter which supports browser CORS.'
+          : 'CORS error — your AI provider blocks browser requests. Enable "Use Proxy" in Settings (requires Vercel deployment) or switch to OpenRouter.',
+      }
     }
     return { success: false, content: '', error: message }
   }
