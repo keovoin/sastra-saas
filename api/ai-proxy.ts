@@ -32,12 +32,20 @@ export default async function handler(req: Request) {
     const body = await req.text()
     const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    }
+
+    // OpenRouter requires HTTP-Referer
+    if (baseUrl.includes('openrouter')) {
+      headers['HTTP-Referer'] = req.headers.get('origin') || 'https://sastratech.vercel.app'
+      headers['X-Title'] = 'Sastra Business OS'
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers,
       body,
     })
 

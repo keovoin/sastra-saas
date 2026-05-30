@@ -39,7 +39,13 @@ export function Settings() {
   const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null)
   const [isTestingKey, setIsTestingKey] = useState(false)
   const [proxyEnabled, setProxyEnabled] = useState(() => {
-    try { return localStorage.getItem('sastra-ai-proxy') !== 'false' } catch { return true }
+    try {
+      const setting = localStorage.getItem('sastra-ai-proxy')
+      if (setting !== null) return setting === 'true'
+      // Default OFF for OpenRouter (supports CORS), ON for everything else
+      const url = localStorage.getItem('sastra-ai-url') || ''
+      return !url.includes('openrouter')
+    } catch { return true }
   })
 
   useEffect(() => {
@@ -210,7 +216,18 @@ export function Settings() {
                 ].map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => { setProvider(p.id); if (p.url) setBaseUrl(p.url) }}
+                    onClick={() => {
+                      setProvider(p.id)
+                      if (p.url) setBaseUrl(p.url)
+                      // OpenRouter supports CORS natively — no proxy needed
+                      if (p.id === 'openrouter' || p.id === 'ollama') {
+                        setProxyEnabled(false)
+                        localStorage.setItem('sastra-ai-proxy', 'false')
+                      } else if (p.id !== 'custom') {
+                        setProxyEnabled(true)
+                        localStorage.setItem('sastra-ai-proxy', 'true')
+                      }
+                    }}
                     className={`rounded-lg border p-2.5 text-left transition-all ${
                       provider === p.id
                         ? 'border-primary bg-primary/5 ring-1 ring-primary'

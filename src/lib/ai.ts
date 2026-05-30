@@ -12,8 +12,16 @@ export function isAIConfigured(): boolean {
 }
 
 // Check if proxy mode is enabled (needed for Groq, Together AI, etc)
+// OpenRouter supports direct browser CORS, so proxy is optional for it
 function useProxy(): boolean {
-  try { return localStorage.getItem('sastra-ai-proxy') === 'true' } catch { return true }
+  try {
+    const setting = localStorage.getItem('sastra-ai-proxy')
+    if (setting !== null) return setting === 'true'
+    // Default: use proxy unless using OpenRouter (which supports CORS natively)
+    const baseUrl = localStorage.getItem('sastra-ai-url') || ''
+    if (baseUrl.includes('openrouter')) return false
+    return true
+  } catch { return true }
 }
 
 export async function askAI(prompt: string): Promise<AIResponse> {
@@ -59,14 +67,20 @@ export async function askAI(prompt: string): Promise<AIResponse> {
         signal: controller.signal,
       })
     } else {
-      // Direct request (only works with providers that allow CORS, like OpenRouter)
+      // Direct request (works with OpenRouter which supports CORS)
       const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      }
+      // OpenRouter requires HTTP-Referer for attribution
+      if (baseUrl.includes('openrouter')) {
+        headers['HTTP-Referer'] = window.location.origin
+        headers['X-Title'] = 'Sastra Business OS'
+      }
       response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
+        headers,
         body: requestBody,
         signal: controller.signal,
       })
