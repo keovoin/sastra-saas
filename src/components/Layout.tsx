@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useBusinessOS, PERSONAS } from '@/context/BusinessContext'
+import { useBusinessOS } from '@/context/BusinessContext'
 import { Button } from '@/components/ui/button'
 import {
   LayoutDashboard,
@@ -16,8 +16,8 @@ import {
   ChevronDown,
   Loader2,
   Printer,
-  ToggleLeft,
-  ToggleRight,
+  FolderOpen,
+  Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -45,8 +45,20 @@ const breadcrumbMap: Record<string, string> = {
 }
 
 export function Layout({ children, currentPage, onNavigate, onExport }: LayoutProps) {
-  const { sidebarCollapsed, toggleSidebar, activeUser, switchUser, isSaving, isAdmin } = useBusinessOS()
+  const {
+    profile,
+    isAdmin,
+    signOut,
+    isSaving,
+    activeProject,
+    projects,
+    setActiveProjectId,
+    createProject,
+  } = useBusinessOS()
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false)
 
   const handleInvite = () => {
     if (!isAdmin) {
@@ -58,7 +70,18 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
     })
   }
 
-  const otherUser = PERSONAS.find((p) => p.id !== activeUser.id)
+  const handleNewProject = async () => {
+    const title = prompt('Enter project name:')
+    if (title?.trim()) {
+      await createProject(title.trim())
+    }
+  }
+
+  const userInitials = profile?.full_name
+    ? profile.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    : '??'
+
+  const displayName = profile?.full_name || 'User'
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 print:hidden">
@@ -85,6 +108,63 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
           )}
         </div>
 
+        {/* Project Selector */}
+        {!sidebarCollapsed && (
+          <div className="border-b border-slate-200 px-3 py-3">
+            <div className="relative">
+              <button
+                onClick={() => setProjectSelectorOpen(!projectSelectorOpen)}
+                className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <FolderOpen className="h-4 w-4 shrink-0 text-slate-500" />
+                  <span className="truncate font-medium text-slate-700">
+                    {activeProject?.title || 'No project'}
+                  </span>
+                </div>
+                <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
+              </button>
+
+              {projectSelectorOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProjectSelectorOpen(false)} />
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    {projects.map((project) => (
+                      <button
+                        key={project.id}
+                        onClick={() => {
+                          setActiveProjectId(project.id)
+                          setProjectSelectorOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                          project.id === activeProject?.id
+                            ? 'bg-slate-100 font-medium text-slate-900'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="truncate">{project.title}</span>
+                      </button>
+                    ))}
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          setProjectSelectorOpen(false)
+                          handleNewProject()
+                        }}
+                        className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        New Project
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Nav Links */}
         <nav className="flex-1 space-y-1 px-2 py-4">
           {navItems.map((item) => {
@@ -108,42 +188,10 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
           })}
         </nav>
 
-        {/* DevTools Toggle - Bottom Left */}
-        <div className="border-t border-slate-200 p-2 space-y-1">
-          {!sidebarCollapsed && (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">DevTools</span>
-              </div>
-              <p className="text-xs text-slate-600 mb-2 font-medium">
-                {activeUser.name}
-                <span className={`ml-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                  isAdmin ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {activeUser.role.toUpperCase()}
-                </span>
-              </p>
-              <button
-                onClick={() => switchUser(otherUser?.id || 'user-a')}
-                className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <span>Switch to {otherUser?.name}</span>
-                {isAdmin ? <ToggleLeft className="h-3.5 w-3.5 text-slate-400" /> : <ToggleRight className="h-3.5 w-3.5 text-violet-500" />}
-              </button>
-            </div>
-          )}
-          {sidebarCollapsed && (
-            <button
-              onClick={() => switchUser(otherUser?.id || 'user-a')}
-              className="flex w-full items-center justify-center rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-              title={`Switch to ${otherUser?.name} (${otherUser?.role})`}
-            >
-              {isAdmin ? <ToggleLeft className="h-4 w-4" /> : <ToggleRight className="h-4 w-4" />}
-            </button>
-          )}
+        {/* Collapse Toggle */}
+        <div className="border-t border-slate-200 p-2">
           <button
-            onClick={toggleSidebar}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="flex w-full items-center justify-center rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
           >
             {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -159,6 +207,12 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
           <div className="flex items-center gap-2 text-sm">
             <span className="text-slate-400">Sastra</span>
             <span className="text-slate-300">/</span>
+            {activeProject && (
+              <>
+                <span className="text-slate-400 truncate max-w-[120px]">{activeProject.title}</span>
+                <span className="text-slate-300">/</span>
+              </>
+            )}
             <span className="font-medium text-slate-700">{breadcrumbMap[currentPage] || 'Dashboard'}</span>
             {isSaving && (
               <span className="ml-3 flex items-center gap-1.5 text-xs text-slate-400">
@@ -170,7 +224,6 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            {/* Export Button */}
             {(currentPage === 'risks' || currentPage === 'charters') && (
               <Button variant="outline" size="sm" onClick={onExport} className="gap-2">
                 <Printer className="h-4 w-4" />
@@ -196,15 +249,17 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex items-center gap-2 rounded-md p-1.5 hover:bg-slate-100 transition-colors"
               >
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${activeUser.gradient} text-xs font-medium text-white`}>
-                  {activeUser.initials}
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-medium text-white">
+                  {userInitials}
                 </div>
                 <div className="hidden sm:flex items-center gap-1">
-                  <span className="text-sm font-medium text-slate-700">{activeUser.name}</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    isAdmin ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {activeUser.role.toUpperCase()}
+                  <span className="text-sm font-medium text-slate-700">{displayName}</span>
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      isAdmin ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    {profile?.role?.toUpperCase() || 'USER'}
                   </span>
                   <ChevronDown className="h-3 w-3 text-slate-400" />
                 </div>
@@ -213,19 +268,20 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
               {profileOpen && (
                 <div className="absolute right-0 top-12 z-50 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
                   <div className="border-b border-slate-100 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-900">{activeUser.name}</p>
-                    <p className="text-xs text-slate-500">{activeUser.email}</p>
-                    <p className={`mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded inline-block ${
-                      isAdmin ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {activeUser.role === 'admin' ? 'Administrator' : 'Viewer (Read Only)'}
-                    </p>
+                    <p className="text-sm font-medium text-slate-900">{displayName}</p>
+                    <p className="text-xs text-slate-500">{profile?.role === 'admin' ? 'Administrator' : 'Viewer'}</p>
                   </div>
-                  <button className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                  <button
+                    onClick={() => { setProfileOpen(false); onNavigate('settings') }}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  >
                     <User className="h-4 w-4" />
                     Profile Settings
                   </button>
-                  <button className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                  <button
+                    onClick={() => { setProfileOpen(false); signOut() }}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
                     <LogOut className="h-4 w-4" />
                     Sign Out
                   </button>
@@ -237,7 +293,25 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl p-6">{children}</div>
+          <div className="mx-auto max-w-7xl p-6">
+            {!activeProject ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="rounded-full bg-slate-100 p-4 mb-4">
+                  <FolderOpen className="h-8 w-8 text-slate-400" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">No project selected</h2>
+                <p className="mt-1 text-sm text-slate-500 mb-4">Create a project to get started with your business tools.</p>
+                {isAdmin && (
+                  <Button onClick={handleNewProject} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create First Project
+                  </Button>
+                )}
+              </div>
+            ) : (
+              children
+            )}
+          </div>
         </main>
       </div>
 
