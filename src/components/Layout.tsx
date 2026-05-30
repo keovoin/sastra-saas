@@ -73,6 +73,7 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
   const [profileOpen, setProfileOpen] = useState(false)
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
 
   const handleNewProject = async () => {
     const title = prompt('Enter project name:')
@@ -224,10 +225,41 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
 
-            <button className="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-            </button>
+            <div className="relative">
+              <button onClick={() => setNotificationsOpen(!notificationsOpen)} className="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+                <Bell className="h-5 w-5" />
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 top-12 z-50 w-80 rounded-lg border border-border bg-card py-1 shadow-lg">
+                  <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold">Notifications</p>
+                    <span className="text-xs text-muted-foreground">3 new</span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {[
+                      { title: 'Risk severity increased', desc: 'RSK-003 moved to critical (20/25)', time: '2m ago', read: false },
+                      { title: 'New team member joined', desc: 'sarah@company.com accepted invite', time: '1h ago', read: false },
+                      { title: 'Charter milestone due', desc: 'Platform Migration — Phase 2 deadline tomorrow', time: '3h ago', read: false },
+                      { title: 'AI analysis complete', desc: 'Board deck section generated successfully', time: '1d ago', read: true },
+                      { title: 'Weekly pulse results', desc: 'Team score improved to 4.2/5', time: '2d ago', read: true },
+                    ].map((n, i) => (
+                      <div key={i} className={`flex items-start gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer ${!n.read ? 'bg-primary/5' : ''}`}>
+                        <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${!n.read ? 'bg-primary' : 'bg-transparent'}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{n.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{n.desc}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{n.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-border px-4 py-2">
+                    <button className="text-xs text-primary hover:underline w-full text-center">Mark all as read</button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Profile Dropdown */}
             <div className="relative">
@@ -271,8 +303,8 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
         </main>
       </div>
 
-      {/* Click outside to close profile */}
-      {profileOpen && (<div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />)}
+      {/* Click outside to close dropdowns */}
+      {(profileOpen || notificationsOpen) && (<div className="fixed inset-0 z-40" onClick={() => { setProfileOpen(false); setNotificationsOpen(false) }} />)}
 
       {/* Invite Modal */}
       <InviteModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />

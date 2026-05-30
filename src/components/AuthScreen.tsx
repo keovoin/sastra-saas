@@ -14,6 +14,7 @@ export function AuthScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -151,6 +152,27 @@ export function AuthScreen() {
                       disabled={isLoading}
                     />
                   </div>
+                </div>
+              )}
+
+              {mode === 'sign_in' && (
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm text-muted-foreground">Remember me</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setMode('magic_link')}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
               )}
 
