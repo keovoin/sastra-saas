@@ -1,0 +1,108 @@
+import { create } from 'zustand'
+
+export type Priority = 'Low' | 'Medium' | 'High'
+export type SwotCategory = 'strengths' | 'weaknesses' | 'opportunities' | 'threats'
+export type RiskStatus = 'Active' | 'Mitigated' | 'Watch'
+
+export interface SwotItem {
+  id: string
+  text: string
+  priority: Priority
+  category: SwotCategory
+}
+
+export interface RiskItem {
+  id: string
+  description: string
+  probability: number
+  impact: number
+  severity: number
+  owner: string
+  ownerAvatar: string
+  status: RiskStatus
+}
+
+export interface ProjectCharter {
+  id: string
+  name: string
+  sponsor: string
+  startDate: string
+  inScope: string[]
+  outOfScope: string[]
+  teamMembers: string[]
+  createdAt: string
+}
+
+interface AppState {
+  // Sidebar
+  sidebarCollapsed: boolean
+  toggleSidebar: () => void
+
+  // SWOT
+  swotItems: SwotItem[]
+  addSwotItem: (item: SwotItem) => void
+  updateSwotItem: (id: string, updates: Partial<SwotItem>) => void
+  deleteSwotItem: (id: string) => void
+
+  // Risks
+  risks: RiskItem[]
+  addRisk: (risk: RiskItem) => void
+  updateRisk: (id: string, updates: Partial<RiskItem>) => void
+
+  // Project Charters
+  charters: ProjectCharter[]
+  addCharter: (charter: ProjectCharter) => void
+}
+
+export const useStore = create<AppState>((set) => ({
+  sidebarCollapsed: false,
+  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+
+  swotItems: [
+    { id: '1', text: 'Strong engineering team with 15+ years average experience', priority: 'High', category: 'strengths' },
+    { id: '2', text: 'Proprietary ML pipeline reduces processing time by 60%', priority: 'High', category: 'strengths' },
+    { id: '3', text: 'Limited brand awareness in enterprise segment', priority: 'Medium', category: 'weaknesses' },
+    { id: '4', text: 'Technical debt in legacy payment module', priority: 'High', category: 'weaknesses' },
+    { id: '5', text: 'EU market expansion post-GDPR compliance certification', priority: 'High', category: 'opportunities' },
+    { id: '6', text: 'Partnership with Salesforce for CRM integration', priority: 'Medium', category: 'opportunities' },
+    { id: '7', text: 'New competitor funded $50M Series C in same vertical', priority: 'High', category: 'threats' },
+    { id: '8', text: 'Potential regulatory changes in data privacy (AI Act)', priority: 'Medium', category: 'threats' },
+  ],
+  addSwotItem: (item) => set((state) => ({ swotItems: [...state.swotItems, item] })),
+  updateSwotItem: (id, updates) =>
+    set((state) => ({
+      swotItems: state.swotItems.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+    })),
+  deleteSwotItem: (id) =>
+    set((state) => ({ swotItems: state.swotItems.filter((item) => item.id !== id) })),
+
+  risks: [
+    { id: 'RSK-001', description: 'Cloud infrastructure vendor lock-in with AWS services', probability: 4, impact: 4, severity: 16, owner: 'Sarah Chen', ownerAvatar: 'SC', status: 'Active' },
+    { id: 'RSK-002', description: 'Key engineer departure risk (bus factor = 1 on auth module)', probability: 3, impact: 5, severity: 15, owner: 'Marcus Johnson', ownerAvatar: 'MJ', status: 'Watch' },
+    { id: 'RSK-003', description: 'Third-party API deprecation (Stripe v2 sunset Q4)', probability: 5, impact: 4, severity: 20, owner: 'Priya Sharma', ownerAvatar: 'PS', status: 'Active' },
+    { id: 'RSK-004', description: 'Data breach through unpatched dependencies', probability: 2, impact: 5, severity: 10, owner: 'Alex Rivera', ownerAvatar: 'AR', status: 'Mitigated' },
+    { id: 'RSK-005', description: 'Market timing risk for Q3 product launch', probability: 3, impact: 3, severity: 9, owner: 'Sarah Chen', ownerAvatar: 'SC', status: 'Watch' },
+    { id: 'RSK-006', description: 'Compliance gap with SOC 2 Type II certification', probability: 4, impact: 5, severity: 20, owner: 'David Kim', ownerAvatar: 'DK', status: 'Active' },
+    { id: 'RSK-007', description: 'Customer churn due to slow feature delivery cadence', probability: 3, impact: 4, severity: 12, owner: 'Marcus Johnson', ownerAvatar: 'MJ', status: 'Watch' },
+    { id: 'RSK-008', description: 'Budget overrun on infrastructure scaling costs', probability: 4, impact: 3, severity: 12, owner: 'Priya Sharma', ownerAvatar: 'PS', status: 'Active' },
+  ],
+  addRisk: (risk) => set((state) => ({ risks: [...state.risks, risk] })),
+  updateRisk: (id, updates) =>
+    set((state) => ({
+      risks: state.risks.map((r) => (r.id === id ? { ...r, ...updates } : r)),
+    })),
+
+  charters: [
+    {
+      id: 'CHR-001',
+      name: 'Platform Migration to Kubernetes',
+      sponsor: 'CTO - Jennifer Walsh',
+      startDate: '2024-09-01',
+      inScope: ['Container orchestration', 'CI/CD pipeline update', 'Service mesh implementation'],
+      outOfScope: ['Database migration', 'Frontend rewrite'],
+      teamMembers: ['sarah@company.com', 'marcus@company.com', 'priya@company.com'],
+      createdAt: '2024-08-15',
+    },
+  ],
+  addCharter: (charter) => set((state) => ({ charters: [...state.charters, charter] })),
+}))
