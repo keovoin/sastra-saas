@@ -37,3 +37,21 @@
 }
 
 
+
+
+/* Print styles for Export/Print feature */
+@media print {
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+    font-size: 12px;
+  }
+
+  * {
+    box-shadow: none !important;
+  }
+}
