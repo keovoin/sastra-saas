@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Plus, ArrowUpDown, ShieldAlert, AlertTriangle, Trash2, Sparkles, Loader2 } from 'lucide-react'
 import { isAIConfigured, askAIJson } from '@/lib/ai'
+import { toast } from 'sonner'
 
 const statusVariant: Record<RiskStatus, 'danger' | 'success' | 'warning'> = {
   Active: 'danger',
