@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { useStore, SwotItem, SwotCategory, Priority } from '@/store/useStore'
+import { useBusinessOS } from '@/context/BusinessContext'
+import type { SwotItem, SwotType, Priority } from '@/types/database'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,13 +15,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Plus, Edit2, Trash2, TrendingUp, TrendingDown, Lightbulb, AlertTriangle } from 'lucide-react'
-import { toast } from 'sonner'
 
-const quadrantConfig: Record<SwotCategory, { title: string; color: string; borderColor: string; icon: React.ElementType; bgColor: string }> = {
-  strengths: { title: 'Strengths', color: 'text-emerald-700', borderColor: 'border-l-emerald-500', icon: TrendingUp, bgColor: 'bg-emerald-50' },
-  weaknesses: { title: 'Weaknesses', color: 'text-red-700', borderColor: 'border-l-red-500', icon: TrendingDown, bgColor: 'bg-red-50' },
-  opportunities: { title: 'Opportunities', color: 'text-blue-700', borderColor: 'border-l-blue-500', icon: Lightbulb, bgColor: 'bg-blue-50' },
-  threats: { title: 'Threats', color: 'text-orange-700', borderColor: 'border-l-orange-500', icon: AlertTriangle, bgColor: 'bg-orange-50' },
+const quadrantConfig: Record<SwotType, { title: string; color: string; borderColor: string; icon: React.ElementType; bgColor: string }> = {
+  strength: { title: 'Strengths', color: 'text-emerald-700', borderColor: 'border-l-emerald-500', icon: TrendingUp, bgColor: 'bg-emerald-50' },
+  weakness: { title: 'Weaknesses', color: 'text-red-700', borderColor: 'border-l-red-500', icon: TrendingDown, bgColor: 'bg-red-50' },
+  opportunity: { title: 'Opportunities', color: 'text-blue-700', borderColor: 'border-l-blue-500', icon: Lightbulb, bgColor: 'bg-blue-50' },
+  threat: { title: 'Threats', color: 'text-orange-700', borderColor: 'border-l-orange-500', icon: AlertTriangle, bgColor: 'bg-orange-50' },
 }
 
 const priorityColors: Record<Priority, string> = {
@@ -30,14 +30,15 @@ const priorityColors: Record<Priority, string> = {
 }
 
 export function StrategyBoard() {
-  const { swotItems, addSwotItem, updateSwotItem, deleteSwotItem } = useStore()
+  const { swotItems, addSwotItem, updateSwotItem, deleteSwotItem, isAdmin } = useBusinessOS()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<SwotItem | null>(null)
   const [newText, setNewText] = useState('')
   const [newPriority, setNewPriority] = useState<Priority>('Medium')
-  const [newCategory, setNewCategory] = useState<SwotCategory>('strengths')
+  const [newCategory, setNewCategory] = useState<SwotType>('strength')
 
-  const openAddModal = (category: SwotCategory) => {
+  const openAddModal = (category: SwotType) => {
+    if (!isAdmin) return
     setEditingItem(null)
     setNewText('')
     setNewPriority('Medium')
@@ -46,52 +47,55 @@ export function StrategyBoard() {
   }
 
   const openEditModal = (item: SwotItem) => {
+    if (!isAdmin) return
     setEditingItem(item)
-    setNewText(item.text)
+    setNewText(item.content)
     setNewPriority(item.priority)
-    setNewCategory(item.category)
+    setNewCategory(item.type)
     setModalOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!isAdmin) return
     if (!newText.trim()) return
 
     if (editingItem) {
-      updateSwotItem(editingItem.id, { text: newText, priority: newPriority, category: newCategory })
-      toast.success('Item updated successfully')
+      await updateSwotItem(editingItem.id, { content: newText, priority: newPriority, type: newCategory })
     } else {
-      addSwotItem({
-        id: Date.now().toString(),
-        text: newText,
-        priority: newPriority,
-        category: newCategory,
-      })
-      toast.success('New item added to ' + quadrantConfig[newCategory].title)
+      await addSwotItem({ content: newText, priority: newPriority, type: newCategory })
     }
     setModalOpen(false)
   }
 
-  const handleDelete = (id: string) => {
-    deleteSwotItem(id)
-    toast.success('Item removed')
+  const handleDelete = async (id: string) => {
+    if (!isAdmin) return
+    await deleteSwotItem(id)
   }
 
-  const getItemsByCategory = (category: SwotCategory) =>
-    swotItems.filter((item) => item.category === category)
+  const getItemsByCategory = (category: SwotType) =>
+    swotItems.filter((item) => item.type === category)
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Strategy Board</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Analyze your business position with an interactive SWOT framework. Click items to edit or vote on priority.
+          Analyze your business position with an interactive SWOT framework.{' '}
+          {isAdmin ? 'Click items to edit or vote on priority.' : 'You have read-only access.'}
         </p>
       </div>
 
+      {!isAdmin && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800 font-medium">
+            You are viewing as a <span className="font-bold">Viewer</span>. Editing is disabled.
+          </p>
+        </div>
+      )}
+
       {/* SWOT Grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {(Object.keys(quadrantConfig) as SwotCategory[]).map((category) => {
+        {(Object.keys(quadrantConfig) as SwotType[]).map((category) => {
           const config = quadrantConfig[category]
           const Icon = config.icon
           const items = getItemsByCategory(category)
@@ -105,19 +109,14 @@ export function StrategyBoard() {
                       <Icon className={`h-4 w-4 ${config.color}`} />
                     </div>
                     <CardTitle className={`text-base ${config.color}`}>{config.title}</CardTitle>
-                    <Badge variant="secondary" className="text-xs">
-                      {items.length}
-                    </Badge>
+                    <Badge variant="secondary" className="text-xs">{items.length}</Badge>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => openAddModal(category)}
-                    className="h-8 gap-1 text-xs"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add Item
-                  </Button>
+                  {isAdmin && (
+                    <Button variant="ghost" size="sm" onClick={() => openAddModal(category)} className="h-8 gap-1 text-xs">
+                      <Plus className="h-3 w-3" />
+                      Add Item
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -127,44 +126,34 @@ export function StrategyBoard() {
                       <Icon className={`h-6 w-6 ${config.color} opacity-50`} />
                     </div>
                     <p className="text-sm text-slate-500">No items yet</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openAddModal(category)}
-                      className="mt-2 gap-1 text-xs"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Add First Item
-                    </Button>
+                    {isAdmin && (
+                      <Button variant="outline" size="sm" onClick={() => openAddModal(category)} className="mt-2 gap-1 text-xs">
+                        <Plus className="h-3 w-3" />
+                        Add First Item
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="group flex items-start gap-3 rounded-md border border-slate-100 bg-white p-3 shadow-sm transition-all hover:border-slate-200 hover:shadow"
-                    >
+                    <div key={item.id} className="group flex items-start gap-3 rounded-md border border-slate-100 bg-white p-3 shadow-sm transition-all hover:border-slate-200 hover:shadow">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-700 leading-relaxed">{item.text}</p>
+                        <p className="text-sm text-slate-700 leading-relaxed">{item.content}</p>
                         <div className="mt-2">
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${priorityColors[item.priority]}`}>
                             {item.priority}
                           </span>
                         </div>
                       </div>
-                      <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => openEditModal(item)}
-                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditModal(item)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(item.id)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -175,73 +164,48 @@ export function StrategyBoard() {
       </div>
 
       {/* Add/Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingItem ? 'Edit Item' : 'Add New Item'}</DialogTitle>
-            <DialogDescription>
-              {editingItem ? 'Update the text and priority of this strategy item.' : 'Add a new item to your SWOT analysis.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="item-text">Description</Label>
-              <Input
-                id="item-text"
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                placeholder="Describe the strategic factor..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Priority</Label>
-              <div className="flex gap-2">
-                {(['Low', 'Medium', 'High'] as Priority[]).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setNewPriority(p)}
-                    className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
-                      newPriority === p
-                        ? 'border-slate-900 bg-slate-900 text-white'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {editingItem && (
+      {isAdmin && (
+        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingItem ? 'Edit Item' : 'Add New Item'}</DialogTitle>
+              <DialogDescription>
+                {editingItem ? 'Update the text and priority of this strategy item.' : 'Add a new item to your SWOT analysis.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Category</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(quadrantConfig) as SwotCategory[]).map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setNewCategory(cat)}
-                      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                        newCategory === cat
-                          ? 'border-slate-900 bg-slate-900 text-white'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {quadrantConfig[cat].title}
-                    </button>
+                <Label htmlFor="item-text">Description</Label>
+                <Input id="item-text" value={newText} onChange={(e) => setNewText(e.target.value)} placeholder="Describe the strategic factor..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <div className="flex gap-2">
+                  {(['Low', 'Medium', 'High'] as Priority[]).map((p) => (
+                    <button key={p} onClick={() => setNewPriority(p)} className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors ${newPriority === p ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{p}</button>
                   ))}
                 </div>
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={!newText.trim()}>
-              {editingItem ? 'Save Changes' : 'Add Item'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {editingItem && (
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(Object.keys(quadrantConfig) as SwotType[]).map((cat) => (
+                      <button key={cat} onClick={() => setNewCategory(cat)} className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${newCategory === cat ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{quadrantConfig[cat].title}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!newText.trim()}>
+                {editingItem ? 'Save Changes' : 'Add Item'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
