@@ -26,6 +26,7 @@ import { BoardDeckGenerator } from '@/pages/BoardDeckGenerator'
 import { OrgManagement } from '@/pages/OrgManagement'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Toaster } from 'sonner'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import type { Session } from '@supabase/supabase-js'
 
 function AuthenticatedApp({ session }: { session: Session }) {
@@ -101,13 +102,14 @@ function App() {
     )
   }
 
-  if (session) return <><AuthenticatedApp session={session} /><Toaster position="bottom-right" richColors closeButton /></>
-  if (showAuth) return <><AuthScreen /><Toaster position="bottom-right" richColors closeButton /></>
+  if (session) return <><AuthenticatedApp session={session} /><Toaster position="bottom-right" richColors closeButton /><SpeedInsights /></>
+  if (showAuth) return <><AuthScreen /><Toaster position="bottom-right" richColors closeButton /><SpeedInsights /></>
 
   return (
     <>
       <LandingPage onGetStarted={() => setShowAuth(true)} />
       <Toaster position="bottom-right" richColors closeButton />
+      <SpeedInsights />
     </>
   )
 }
