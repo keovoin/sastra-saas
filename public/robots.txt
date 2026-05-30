@@ -1,0 +1,8 @@
+# Sastra Business OS - Robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+
+# Sitemap
+Sitemap: https://sastratech.live/sitemap.xml

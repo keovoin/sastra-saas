@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Target, ShieldAlert, FileText, Settings,
   ChevronLeft, ChevronRight, UserPlus, LogOut, User, Bell,
   ChevronDown, Loader2, Printer, FolderOpen, Plus, Moon, Sun, Menu, X,
-  Activity, Sparkles, Crosshair, FileCheck, Swords, Calculator, Users2,
+  Activity, Sparkles, FileCheck, Swords, Calculator, Users2,
   BarChart3, Scale, GitBranch, Pipette, Heart, DollarSign, Presentation, Building2,
 } from 'lucide-react'
 import { toast } from 'sonner'

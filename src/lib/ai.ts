@@ -1,4 +1,5 @@
 import { getStoredApiKey, getStoredModel, getStoredBaseUrl } from '@/pages/Settings'
+import { sanitizeInput, checkAIRateLimit } from '@/lib/security'
 
 export interface AIResponse {
   success: boolean
@@ -19,8 +20,19 @@ export async function askAI(prompt: string): Promise<AIResponse> {
     return { success: false, content: '', error: 'No API key configured. Go to Settings to add one.' }
   }
 
+  // Rate limiting: max 20 AI calls per minute
+  if (!checkAIRateLimit()) {
+    return { success: false, content: '', error: 'Rate limit exceeded. Please wait a moment before trying again.' }
+  }
+
+  // Sanitize prompt to prevent injection
+  const cleanPrompt = sanitizeInput(prompt)
+
   try {
     const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -29,11 +41,14 @@ export async function askAI(prompt: string): Promise<AIResponse> {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: cleanPrompt }],
         temperature: 0.7,
         max_tokens: 1500,
       }),
+      signal: controller.signal,
     })
+
+    clearTimeout(timeout)
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
@@ -43,8 +58,12 @@ export async function askAI(prompt: string): Promise<AIResponse> {
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content || ''
     return { success: true, content }
-  } catch (error: any) {
-    return { success: false, content: '', error: error.message || 'Connection failed' }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return { success: false, content: '', error: 'Request timed out after 30 seconds.' }
+    }
+    const message = error instanceof Error ? error.message : 'Connection failed'
+    return { success: false, content: '', error: message }
   }
 }
 
