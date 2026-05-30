@@ -313,3 +313,135 @@ create trigger update_swot_items_updated_at
 create trigger update_charters_updated_at
   before update on public.charters
   for each row execute function public.update_updated_at_column();
+
+
+-- ============================================================================
+-- 10. NEW TABLES FOR EXTENDED MODULES
+-- Run this AFTER the initial schema above
+-- ============================================================================
+
+-- TASKS TABLE (Project Board / Kanban)
+create table public.tasks (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  title text not null,
+  description text default '',
+  assignee text default '',
+  priority text not null default 'P3' check (priority in ('P1', 'P2', 'P3', 'P4')),
+  labels text[] not null default '{}',
+  due_date date,
+  column_id text not null default 'todo',
+  "order" integer not null default 0
+);
+
+alter table public.tasks enable row level security;
+create policy "Users can manage tasks in own projects" on public.tasks for all
+  using (exists (select 1 from public.projects where projects.id = tasks.project_id and projects.owner_id = auth.uid()));
+alter publication supabase_realtime add table public.tasks;
+create index idx_tasks_project on public.tasks(project_id);
+
+-- MESSAGES TABLE (Chat)
+create table public.messages (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  channel_id text not null,
+  author_id uuid references public.profiles(id) on delete cascade not null,
+  author_name text not null default '',
+  content text not null,
+  reply_to uuid references public.messages(id) on delete set null
+);
+
+alter table public.messages enable row level security;
+create policy "Authenticated users can manage messages" on public.messages for all using (auth.uid() is not null);
+alter publication supabase_realtime add table public.messages;
+create index idx_messages_channel on public.messages(channel_id);
+
+-- CHANNELS TABLE (Chat)
+create table public.channels (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  name text not null,
+  type text not null default 'group' check (type in ('direct', 'group', 'forum')),
+  description text default '',
+  created_by uuid references public.profiles(id) on delete set null,
+  members text[] not null default '{}'
+);
+
+alter table public.channels enable row level security;
+create policy "Authenticated users can manage channels" on public.channels for all using (auth.uid() is not null);
+
+-- CALENDAR EVENTS TABLE
+create table public.calendar_events (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  title text not null,
+  event_date date not null,
+  type text not null default 'custom' check (type in ('custom', 'milestone', 'risk-review', 'deal-followup', 'task-due', 'meeting')),
+  description text default ''
+);
+
+alter table public.calendar_events enable row level security;
+create policy "Users can manage events in own projects" on public.calendar_events for all
+  using (exists (select 1 from public.projects where projects.id = calendar_events.project_id and projects.owner_id = auth.uid()));
+create index idx_calendar_events_project on public.calendar_events(project_id);
+create index idx_calendar_events_date on public.calendar_events(event_date);
+
+-- ONBOARDING CHECKLISTS TABLE
+create table public.onboarding_checklists (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  employee_name text not null,
+  role text default '',
+  start_date date,
+  steps jsonb not null default '[]'
+);
+
+alter table public.onboarding_checklists enable row level security;
+create policy "Users can manage checklists in own projects" on public.onboarding_checklists for all
+  using (exists (select 1 from public.projects where projects.id = onboarding_checklists.project_id and projects.owner_id = auth.uid()));
+
+-- OFFBOARDING CHECKLISTS TABLE
+create table public.offboarding_checklists (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  employee_name text not null,
+  department text default '',
+  last_day date,
+  steps jsonb not null default '[]'
+);
+
+alter table public.offboarding_checklists enable row level security;
+create policy "Users can manage offboarding in own projects" on public.offboarding_checklists for all
+  using (exists (select 1 from public.projects where projects.id = offboarding_checklists.project_id and projects.owner_id = auth.uid()));
+
+-- EMPLOYEE MOVEMENTS TABLE
+create table public.employee_movements (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  employee_name text not null,
+  movement_type text not null default 'promotion' check (movement_type in ('promotion', 'transfer', 'role-change')),
+  from_role text default '',
+  from_dept text default '',
+  to_role text default '',
+  to_dept text default '',
+  approved_by text default '',
+  movement_date date not null default current_date,
+  notes text default ''
+);
+
+alter table public.employee_movements enable row level security;
+create policy "Users can manage movements in own projects" on public.employee_movements for all
+  using (exists (select 1 from public.projects where projects.id = employee_movements.project_id and projects.owner_id = auth.uid()));
+
+-- Add mitigation and controls columns to risks table
+alter table public.risks add column if not exists mitigation text default '';
+alter table public.risks add column if not exists controls text default '';
+
+-- Add triggers for new tables
+create trigger update_tasks_updated_at before update on public.tasks for each row execute function public.update_updated_at_column();

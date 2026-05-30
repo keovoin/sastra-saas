@@ -18,11 +18,11 @@ interface Metrics {
 
 export function UnitEconomics() {
   const [metrics, setMetrics] = useState<Metrics>({
-    arpu: 89,
-    cac: 320,
-    churnRate: 4.5,
-    grossMargin: 72,
-    expansionRevenue: 12,
+    arpu: 0,
+    cac: 0,
+    churnRate: 0,
+    grossMargin: 0,
+    expansionRevenue: 0,
   })
   const [aiInsight, setAiInsight] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
@@ -102,54 +102,63 @@ Give specific, actionable recommendations. Format as numbered list.`
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
+              <Label className="flex items-center gap-1" title="Average Revenue Per User — monthly revenue divided by total active users">
                 <DollarSign className="h-3 w-3" /> ARPU ($/month)
               </Label>
               <Input
                 type="number"
-                value={metrics.arpu}
+                value={metrics.arpu || ''}
                 onChange={e => updateMetric('arpu', e.target.value)}
+                placeholder="e.g. 89"
               />
+              <p className="text-[10px] text-muted-foreground">Monthly revenue ÷ active users</p>
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
+              <Label className="flex items-center gap-1" title="Customer Acquisition Cost — total sales & marketing spend divided by new customers acquired">
                 <DollarSign className="h-3 w-3" /> CAC ($)
               </Label>
               <Input
                 type="number"
-                value={metrics.cac}
+                value={metrics.cac || ''}
                 onChange={e => updateMetric('cac', e.target.value)}
+                placeholder="e.g. 320"
               />
+              <p className="text-[10px] text-muted-foreground">Total S&M spend ÷ new customers</p>
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
+              <Label className="flex items-center gap-1" title="Monthly Churn Rate — percentage of customers lost per month. Below 5% is healthy for SMB SaaS.">
                 <Percent className="h-3 w-3" /> Monthly Churn (%)
               </Label>
               <Input
                 type="number"
                 step="0.1"
-                value={metrics.churnRate}
+                value={metrics.churnRate || ''}
+                placeholder="e.g. 4.5"
                 onChange={e => updateMetric('churnRate', e.target.value)}
               />
+              <p className="text-[10px] text-muted-foreground">% customers lost monthly (&lt;5% healthy)</p>
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
+              <Label className="flex items-center gap-1" title="Gross Margin — revenue minus COGS as a percentage. Above 70% is excellent for SaaS.">
                 <Percent className="h-3 w-3" /> Gross Margin (%)
               </Label>
               <Input
                 type="number"
-                value={metrics.grossMargin}
+                value={metrics.grossMargin || ''}
+                placeholder="e.g. 72"
                 onChange={e => updateMetric('grossMargin', e.target.value)}
               />
+              <p className="text-[10px] text-muted-foreground">Revenue minus COGS (≥70% is great)</p>
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
+              <Label className="flex items-center gap-1" title="Expansion Revenue — percentage of additional revenue from existing customers through upsells and cross-sells">
                 <TrendingUp className="h-3 w-3" /> Expansion Rev (%)
               </Label>
               <Input
                 type="number"
                 step="0.1"
-                value={metrics.expansionRevenue}
+                value={metrics.expansionRevenue || ''}
+                placeholder="e.g. 12"
                 onChange={e => updateMetric('expansionRevenue', e.target.value)}
               />
             </div>

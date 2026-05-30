@@ -18,21 +18,12 @@ interface Invoice {
   status: InvoiceStatus
   dueDate: string
   issuedDate: string
+  remark: string
+  referenceId: string
 }
 
 
-const initialInvoices: Invoice[] = [
-  { id: '1', invoiceNumber: 'INV-001', client: 'Acme Corp', amount: 12500, status: 'paid', dueDate: '2024-02-28', issuedDate: '2024-02-01' },
-  { id: '2', invoiceNumber: 'INV-002', client: 'TechFlow Inc', amount: 8750, status: 'paid', dueDate: '2024-03-05', issuedDate: '2024-02-05' },
-  { id: '3', invoiceNumber: 'INV-003', client: 'DataVault Systems', amount: 24000, status: 'pending', dueDate: '2024-03-20', issuedDate: '2024-02-20' },
-  { id: '4', invoiceNumber: 'INV-004', client: 'CloudNine Solutions', amount: 15800, status: 'pending', dueDate: '2024-03-25', issuedDate: '2024-02-25' },
-  { id: '5', invoiceNumber: 'INV-005', client: 'Quantum Analytics', amount: 6200, status: 'overdue', dueDate: '2024-02-15', issuedDate: '2024-01-15' },
-  { id: '6', invoiceNumber: 'INV-006', client: 'NovaTech Labs', amount: 31000, status: 'paid', dueDate: '2024-03-01', issuedDate: '2024-02-01' },
-  { id: '7', invoiceNumber: 'INV-007', client: 'Meridian Health', amount: 18500, status: 'overdue', dueDate: '2024-02-20', issuedDate: '2024-01-20' },
-  { id: '8', invoiceNumber: 'INV-008', client: 'Synapse Digital', amount: 9400, status: 'pending', dueDate: '2024-03-30', issuedDate: '2024-03-01' },
-  { id: '9', invoiceNumber: 'INV-009', client: 'Apex Ventures', amount: 42000, status: 'paid', dueDate: '2024-03-10', issuedDate: '2024-02-10' },
-  { id: '10', invoiceNumber: 'INV-010', client: 'Horizon Labs', amount: 7800, status: 'pending', dueDate: '2024-04-01', issuedDate: '2024-03-01' },
-]
+const initialInvoices: Invoice[] = []
 
 
 export function InvoiceTracker() {
@@ -41,7 +32,7 @@ export function InvoiceTracker() {
   const [aiInsight, setAiInsight] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [newInvoice, setNewInvoice] = useState({
-    client: '', amount: '', dueDate: '', status: 'pending' as InvoiceStatus,
+    client: '', amount: '', dueDate: '', status: 'pending' as InvoiceStatus, remark: '', referenceId: '',
   })
 
   const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
@@ -61,9 +52,11 @@ export function InvoiceTracker() {
       status: newInvoice.status,
       dueDate: newInvoice.dueDate,
       issuedDate: new Date().toISOString().split('T')[0],
+      remark: newInvoice.remark,
+      referenceId: newInvoice.referenceId,
     }
     setInvoices(prev => [...prev, invoice])
-    setNewInvoice({ client: '', amount: '', dueDate: '', status: 'pending' })
+    setNewInvoice({ client: '', amount: '', dueDate: '', status: 'pending', remark: '', referenceId: '' })
     setShowForm(false)
     toast.success(`Invoice ${invoice.invoiceNumber} created`)
   }
@@ -185,6 +178,14 @@ Keep it concise and actionable.`
               <div className="space-y-2">
                 <Label>Due Date</Label>
                 <Input type="date" value={newInvoice.dueDate} onChange={e => setNewInvoice(p => ({ ...p, dueDate: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Reference ID</Label>
+                <Input placeholder="PO-12345" value={newInvoice.referenceId} onChange={e => setNewInvoice(p => ({ ...p, referenceId: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Remark</Label>
+                <Input placeholder="Optional note..." value={newInvoice.remark} onChange={e => setNewInvoice(p => ({ ...p, remark: e.target.value }))} />
               </div>
               <div className="flex items-end">
                 <Button onClick={addInvoice} className="w-full">Create Invoice</Button>

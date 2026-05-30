@@ -9,6 +9,8 @@ import {
   ChevronDown, Loader2, Printer, FolderOpen, Plus, Moon, Sun, Menu, X,
   Activity, Sparkles, FileCheck, Swords, Calculator, Users2,
   BarChart3, Scale, GitBranch, Pipette, Heart, DollarSign, Presentation, Building2,
+  KanbanSquare, ClipboardCheck, UserMinus, ArrowRightLeft, Calendar,
+  MessageCircle, CreditCard, UserCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -19,30 +21,62 @@ interface LayoutProps {
   onExport: () => void
 }
 
-const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'strategy', label: 'Strategy (SWOT)', icon: Target },
-  { id: 'risks', label: 'Risk Manager', icon: ShieldAlert },
-  { id: 'charters', label: 'Project Charters', icon: FileText },
-  { id: 'goals', label: 'Goal Cascade', icon: GitBranch },
-  { id: 'decisions', label: 'Decision Log', icon: Scale },
-  { id: 'pipeline', label: 'Sales Pipeline', icon: Pipette },
-  { id: 'competitors', label: 'Competitors', icon: Swords },
-  { id: 'stakeholders', label: 'Stakeholder Map', icon: Users2 },
-  { id: 'kpis', label: 'KPI Dashboard', icon: BarChart3 },
-  { id: 'runway', label: 'Runway Calculator', icon: Calculator },
-  { id: 'unit-economics', label: 'Unit Economics', icon: DollarSign },
-  { id: 'invoices', label: 'Invoices & Revenue', icon: FileCheck },
-  { id: 'pulse', label: 'Team Pulse', icon: Heart },
-  { id: 'org', label: 'Organization', icon: Building2 },
-  { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles },
-  { id: 'board-deck', label: 'Board Deck', icon: Presentation },
-  { id: 'activity', label: 'Activity Feed', icon: Activity },
-  { id: 'settings', label: 'Settings', icon: Settings },
+interface NavGroup {
+  label: string
+  items: { id: string; label: string; icon: any }[]
+}
+
+const navGroups: NavGroup[] = [
+  { label: 'Core', items: [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'project-board', label: 'Project Board', icon: KanbanSquare },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'messaging', label: 'Messaging', icon: MessageCircle },
+  ]},
+  { label: 'Strategy', items: [
+    { id: 'strategy', label: 'Strategy (SWOT)', icon: Target },
+    { id: 'risks', label: 'Risk Manager', icon: ShieldAlert },
+    { id: 'charters', label: 'Project Charters', icon: FileText },
+    { id: 'goals', label: 'Goal Cascade', icon: GitBranch },
+    { id: 'decisions', label: 'Decision Log', icon: Scale },
+    { id: 'competitors', label: 'Competitors', icon: Swords },
+    { id: 'stakeholders', label: 'Stakeholder Map', icon: Users2 },
+  ]},
+  { label: 'Sales & Finance', items: [
+    { id: 'pipeline', label: 'Sales Pipeline', icon: Pipette },
+    { id: 'kpis', label: 'KPI Dashboard', icon: BarChart3 },
+    { id: 'runway', label: 'Runway Calculator', icon: Calculator },
+    { id: 'unit-economics', label: 'Unit Economics', icon: DollarSign },
+    { id: 'invoices', label: 'Invoices & Revenue', icon: FileCheck },
+  ]},
+  { label: 'HR & People', items: [
+    { id: 'pulse', label: 'Team Pulse', icon: Heart },
+    { id: 'org', label: 'Organization', icon: Building2 },
+    { id: 'onboarding', label: 'Onboarding', icon: ClipboardCheck },
+    { id: 'offboarding', label: 'Offboarding', icon: UserMinus },
+    { id: 'employee-movement', label: 'Movements', icon: ArrowRightLeft },
+    { id: 'workload', label: 'Staff Workload', icon: BarChart3 },
+  ]},
+  { label: 'Intelligence', items: [
+    { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles },
+    { id: 'board-deck', label: 'Board Deck', icon: Presentation },
+    { id: 'activity', label: 'Activity Feed', icon: Activity },
+  ]},
+  { label: 'Account', items: [
+    { id: 'user-profile', label: 'My Profile', icon: UserCircle },
+    { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ]},
 ]
+
+// Flat list for compatibility
+const navItems = navGroups.flatMap(g => g.items)
 
 const breadcrumbMap: Record<string, string> = {
   dashboard: 'Dashboard',
+  'project-board': 'Project Board',
+  calendar: 'Calendar',
+  messaging: 'Messaging',
   strategy: 'Strategy Board',
   risks: 'Risk Manager',
   charters: 'Project Charters',
@@ -57,9 +91,15 @@ const breadcrumbMap: Record<string, string> = {
   invoices: 'Invoices & Revenue',
   pulse: 'Team Pulse',
   org: 'Organization',
+  onboarding: 'Onboarding',
+  offboarding: 'Offboarding',
+  'employee-movement': 'Employee Movements',
+  workload: 'Staff Workload',
   'ai-assistant': 'AI Assistant',
   'board-deck': 'Board Deck',
   activity: 'Activity Feed',
+  'user-profile': 'My Profile',
+  billing: 'Billing & Plans',
   profile: 'Profile',
   settings: 'Settings',
 }
@@ -164,18 +204,25 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
 
         {/* Nav Links */}
         <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = currentPage === item.id
-            return (
-              <button key={item.id} onClick={() => handleNavigation(item.id)}
-                className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'} ${sidebarCollapsed && !mobileMenuOpen ? 'justify-center' : ''}`}
-                title={sidebarCollapsed && !mobileMenuOpen ? item.label : undefined}>
-                <Icon className="h-5 w-5 shrink-0" />
-                {(!sidebarCollapsed || mobileMenuOpen) && <span>{item.label}</span>}
-              </button>
-            )
-          })}
+          {navGroups.map((group) => (
+            <div key={group.label} className="mb-3">
+              {(!sidebarCollapsed || mobileMenuOpen) && (
+                <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</p>
+              )}
+              {group.items.map((item) => {
+                const Icon = item.icon
+                const isActive = currentPage === item.id
+                return (
+                  <button key={item.id} onClick={() => handleNavigation(item.id)}
+                    className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'} ${sidebarCollapsed && !mobileMenuOpen ? 'justify-center' : ''}`}
+                    title={sidebarCollapsed && !mobileMenuOpen ? item.label : undefined}>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {(!sidebarCollapsed || mobileMenuOpen) && <span className="truncate">{item.label}</span>}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Collapse Toggle (desktop only) */}
@@ -228,31 +275,17 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
             <div className="relative">
               <button onClick={() => setNotificationsOpen(!notificationsOpen)} className="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
                 <Bell className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
               </button>
               {notificationsOpen && (
                 <div className="absolute right-0 top-12 z-50 w-80 rounded-lg border border-border bg-card py-1 shadow-lg">
                   <div className="border-b border-border px-4 py-3 flex items-center justify-between">
                     <p className="text-sm font-semibold">Notifications</p>
-                    <span className="text-xs text-muted-foreground">3 new</span>
                   </div>
                   <div className="max-h-64 overflow-y-auto">
-                    {[
-                      { title: 'Risk severity increased', desc: 'RSK-003 moved to critical (20/25)', time: '2m ago', read: false },
-                      { title: 'New team member joined', desc: 'sarah@company.com accepted invite', time: '1h ago', read: false },
-                      { title: 'Charter milestone due', desc: 'Platform Migration — Phase 2 deadline tomorrow', time: '3h ago', read: false },
-                      { title: 'AI analysis complete', desc: 'Board deck section generated successfully', time: '1d ago', read: true },
-                      { title: 'Weekly pulse results', desc: 'Team score improved to 4.2/5', time: '2d ago', read: true },
-                    ].map((n, i) => (
-                      <div key={i} className={`flex items-start gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer ${!n.read ? 'bg-primary/5' : ''}`}>
-                        <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${!n.read ? 'bg-primary' : 'bg-transparent'}`} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{n.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">{n.desc}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{n.time}</p>
-                        </div>
-                      </div>
-                    ))}
+                    <div className="flex flex-col items-center justify-center py-8 px-4">
+                      <Bell className="h-6 w-6 text-muted-foreground/30 mb-2" />
+                      <p className="text-xs text-muted-foreground">No notifications yet</p>
+                    </div>
                   </div>
                   <div className="border-t border-border px-4 py-2">
                     <button className="text-xs text-primary hover:underline w-full text-center">Mark all as read</button>

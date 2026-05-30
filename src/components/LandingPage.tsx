@@ -88,30 +88,59 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       </nav>
 
       {/* ─── Hero ─────────────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-16 sm:pt-24 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground mb-6">
-          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-          Now with AI-powered strategy generation
+      <section className="relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950" />
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl animate-float" />
+          <div className="absolute top-40 right-20 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl animate-float delay-200" />
+          <div className="absolute bottom-20 left-1/3 h-48 w-48 rounded-full bg-purple-500/20 blur-3xl animate-float delay-400" />
         </div>
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
-          Run Your Entire Business<br />
-          <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">From One Platform</span>
-        </h1>
-        <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          Strategy, risk management, sales pipeline, financial modeling, and team health — unified with AI. Replace 10+ scattered tools with one system.
-        </p>
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Button size="lg" onClick={onGetStarted} className="gap-2 text-base px-8 h-12">
-            Start Free <ArrowRight className="h-5 w-5" />
-          </Button>
-          <Button variant="outline" size="lg" className="gap-2 text-base px-8 h-12" onClick={() => scrollTo('features')}>
-            <Play className="h-4 w-4" /> See All Features
-          </Button>
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-20 sm:pt-32 pb-20 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 glass px-4 py-1.5 text-sm text-violet-200 mb-8 animate-fade-in-up">
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            Now with AI-powered strategy generation
+          </div>
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight leading-[1.1] text-white animate-fade-in-up delay-100">
+            Run Your Entire Business<br />
+            <span className="gradient-text bg-gradient-to-r from-violet-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent animate-gradient">From One Platform</span>
+          </h1>
+          <p className="mt-6 text-lg sm:text-xl text-violet-200/80 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-200">
+            Strategy, risk management, sales pipeline, financial modeling, and team health — unified with AI. Replace 10+ scattered tools with one beautiful system.
+          </p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
+            <Button size="lg" onClick={onGetStarted} className="gap-2 text-base px-8 h-13 bg-white text-slate-900 hover:bg-violet-50 shadow-xl shadow-white/10 hover-lift">
+              Start Free <ArrowRight className="h-5 w-5" />
+            </Button>
+            <Button variant="outline" size="lg" className="gap-2 text-base px-8 h-13 border-white/20 text-white hover:bg-white/10 backdrop-blur-sm" onClick={() => scrollTo('features')}>
+              <Play className="h-4 w-4" /> See All Features
+            </Button>
+          </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-violet-300/80 animate-fade-in-up delay-400">
+            {['No credit card required', 'Free tier available', '21+ modules included'].map((b) => (
+              <span key={b} className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> {b}</span>
+            ))}
+          </div>
+
+          {/* Floating Illustrations */}
+          <div className="absolute top-20 left-8 hidden lg:block animate-float">
+            <div className="glass rounded-xl p-3 shadow-xl"><Target className="h-6 w-6 text-emerald-400" /></div>
+          </div>
+          <div className="absolute top-32 right-12 hidden lg:block animate-float delay-300">
+            <div className="glass rounded-xl p-3 shadow-xl"><BarChart3 className="h-6 w-6 text-violet-400" /></div>
+          </div>
+          <div className="absolute bottom-32 left-16 hidden lg:block animate-float delay-500">
+            <div className="glass rounded-xl p-3 shadow-xl"><Sparkles className="h-6 w-6 text-amber-400" /></div>
+          </div>
+          <div className="absolute bottom-24 right-24 hidden lg:block animate-float delay-100">
+            <div className="glass rounded-xl p-3 shadow-xl"><ShieldAlert className="h-6 w-6 text-red-400" /></div>
+          </div>
         </div>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          {['No credit card required', 'Free tier available', '21 modules included'].map((b) => (
-            <span key={b} className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> {b}</span>
-          ))}
+        {/* Wave divider */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+            <path d="M0,40 C360,80 720,0 1440,40 L1440,80 L0,80 Z" fill="hsl(var(--background))" />
+          </svg>
         </div>
       </section>
 
@@ -158,8 +187,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           <p className="mt-3 text-lg text-muted-foreground max-w-xl mx-auto">Everything you need to run strategy, operations, finance, and people — integrated and AI-enhanced.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {features.map((f) => { const Icon = f.icon; return (
-            <Card key={f.title} className="border-border hover:shadow-md hover:border-primary/20 transition-all group">
+          {features.map((f, idx) => { const Icon = f.icon; return (
+            <Card key={f.title} className="border-border card-glow hover-lift group animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
               <CardContent className="p-5">
                 <div className={`inline-flex rounded-lg p-2.5 ${f.bg} mb-3 group-hover:scale-110 transition-transform`}><Icon className={`h-5 w-5 ${f.color}`} /></div>
                 <h3 className="text-sm font-semibold mb-1">{f.title}</h3>
@@ -284,14 +313,21 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* ─── Final CTA ────────────────────────────────────────────────────────── */}
       <section className="border-t border-border">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
-          <div className="rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 p-8 sm:p-12 text-center text-white">
-            <h2 className="text-2xl sm:text-3xl font-bold">Ready to unify your business operations?</h2>
-            <p className="mt-3 text-violet-100 max-w-lg mx-auto">Join teams who replaced 10+ tools with one AI-powered Business Operating System.</p>
-            <Button size="lg" onClick={onGetStarted} className="mt-6 bg-white text-violet-700 hover:bg-violet-50 gap-2 text-base px-8 h-12">Get Started Free <ArrowRight className="h-5 w-5" /></Button>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm text-violet-200">
-              <span className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" /> End-to-end encrypted</span>
-              <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" /> Setup in 60 seconds</span>
-              <span className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Works worldwide</span>
+          <div className="relative rounded-2xl overflow-hidden p-8 sm:p-12 text-center text-white">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 animate-gradient" />
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-4 left-1/4 h-32 w-32 rounded-full bg-white/20 blur-2xl animate-float" />
+              <div className="absolute bottom-4 right-1/4 h-24 w-24 rounded-full bg-white/20 blur-2xl animate-float delay-300" />
+            </div>
+            <div className="relative">
+              <h2 className="text-2xl sm:text-4xl font-bold">Ready to unify your business operations?</h2>
+              <p className="mt-3 text-violet-100 max-w-lg mx-auto">Join teams who replaced 10+ tools with one AI-powered Business Operating System.</p>
+              <Button size="lg" onClick={onGetStarted} className="mt-6 bg-white text-violet-700 hover:bg-violet-50 gap-2 text-base px-8 h-12 shadow-xl hover-lift">Get Started Free <ArrowRight className="h-5 w-5" /></Button>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm text-violet-200">
+                <span className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" /> End-to-end encrypted</span>
+                <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" /> Setup in 60 seconds</span>
+                <span className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Works worldwide</span>
+              </div>
             </div>
           </div>
         </div>
