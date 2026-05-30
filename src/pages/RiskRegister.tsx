@@ -14,7 +14,8 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { Plus, ArrowUpDown, ShieldAlert, AlertTriangle, Trash2 } from 'lucide-react'
+import { Plus, ArrowUpDown, ShieldAlert, AlertTriangle, Trash2, Sparkles, Loader2 } from 'lucide-react'
+import { isAIConfigured, askAIJson } from '@/lib/ai'
 
 const statusVariant: Record<RiskStatus, 'danger' | 'success' | 'warning'> = {
   Active: 'danger',
@@ -38,6 +39,26 @@ export function RiskRegister() {
   const [formImpact, setFormImpact] = useState(3)
   const [formOwner, setFormOwner] = useState('')
   const [formStatus, setFormStatus] = useState<RiskStatus>('Active')
+  const [isAILoading, setIsAILoading] = useState(false)
+
+  const handleAISuggestRisks = async () => {
+    setIsAILoading(true)
+    const existingRisks = risks.map((r) => r.description).join('; ')
+    const result = await askAIJson<{ risks: Array<{ description: string; probability: number; impact: number; owner_name: string }> }>(
+      `You are a risk management expert. Based on a tech company's existing risks: "${existingRisks || 'none yet'}",
+suggest 3 NEW risks the company should track. For each, provide description (1-2 sentences), probability (1-5), impact (1-5), and suggest an owner role.
+Format: {"risks": [{"description": "...", "probability": 3, "impact": 4, "owner_name": "CTO"}, ...]}`
+    )
+    setIsAILoading(false)
+    if (result.success && result.data?.risks) {
+      for (const risk of result.data.risks) {
+        await addRisk({ description: risk.description, probability: risk.probability, impact: risk.impact, owner_name: risk.owner_name, status: 'Active' })
+      }
+      toast.success(`${result.data.risks.length} AI-suggested risks added!`)
+    } else {
+      toast.error('AI suggestion failed', { description: result.error })
+    }
+  }
 
   const sortedRisks = useMemo(() => {
     return [...risks].sort((a, b) =>
@@ -110,12 +131,20 @@ export function RiskRegister() {
             Track, assess, and manage organizational risks. Sorted by severity automatically.
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={openAddModal} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Risk
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && isAIConfigured() && (
+            <Button variant="outline" onClick={handleAISuggestRisks} disabled={isAILoading} className="gap-2">
+              {isAILoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-amber-500" />}
+              AI Suggest
+            </Button>
+          )}
+          {isAdmin && (
+            <Button onClick={openAddModal} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Risk
+            </Button>
+          )}
+        </div>
       </div>
 
       {!isAdmin && (

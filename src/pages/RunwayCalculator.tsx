@@ -3,7 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
-import { DollarSign, TrendingDown, Calendar, AlertTriangle, Calculator, RefreshCw } from 'lucide-react'
+import { DollarSign, TrendingDown, Calendar, AlertTriangle, Calculator, RefreshCw, Sparkles, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { isAIConfigured, askAI } from '@/lib/ai'
+import { toast } from 'sonner'
 
 export function RunwayCalculator() {
   const [cashBalance, setCashBalance] = useState(850000)
@@ -11,6 +14,19 @@ export function RunwayCalculator() {
   const [monthlyBurn, setMonthlyBurn] = useState(95000)
   const [revenueGrowth, setRevenueGrowth] = useState(8)
   const [burnGrowth, setBurnGrowth] = useState(3)
+  const [aiAdvice, setAiAdvice] = useState('')
+  const [isAILoading, setIsAILoading] = useState(false)
+
+  const handleAIAdvice = async () => {
+    setIsAILoading(true)
+    const result = await askAI(
+      `I'm a startup with: $${cashBalance.toLocaleString()} cash, $${monthlyRevenue.toLocaleString()}/mo revenue, $${monthlyBurn.toLocaleString()}/mo burn, ${revenueGrowth}% monthly revenue growth, ${burnGrowth}% monthly burn growth.
+Give me 4-5 specific, actionable recommendations to extend runway or reach profitability faster. Be direct and specific (e.g., "Reduce cloud costs by migrating to spot instances - saves ~30%"). One recommendation per line.`
+    )
+    setIsAILoading(false)
+    if (result.success) { setAiAdvice(result.content); toast.success('AI recommendations generated!') }
+    else { toast.error('AI failed', { description: result.error }) }
+  }
 
   const analysis = useMemo(() => {
     const netBurn = monthlyBurn - monthlyRevenue
@@ -54,6 +70,30 @@ export function RunwayCalculator() {
         </CardContent></Card>
         <Card className="lg:col-span-2"><CardHeader className="pb-2"><CardTitle className="text-base">24-Month Projection</CardTitle></CardHeader><CardContent><div className="h-72"><ResponsiveContainer width="100%" height="100%"><AreaChart data={analysis.projections}><CartesianGrid strokeDasharray="3 3" className="stroke-border" /><XAxis dataKey="month" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} /><YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} /><Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }} formatter={(value: number) => [`$${value.toLocaleString()}`, '']} /><ReferenceLine y={0} stroke="#ef4444" strokeDasharray="3 3" /><Area type="monotone" dataKey="cash" stroke="#6366f1" fill="#6366f1" fillOpacity={0.1} strokeWidth={2} name="Cash" /><Area type="monotone" dataKey="revenue" stroke="#10b981" fill="transparent" strokeDasharray="4 4" strokeWidth={1.5} name="Revenue" /><Area type="monotone" dataKey="burn" stroke="#ef4444" fill="transparent" strokeDasharray="4 4" strokeWidth={1.5} name="Burn" /></AreaChart></ResponsiveContainer></div></CardContent></Card>
       </div>
+
+      {/* AI Recommendations */}
+      {isAIConfigured() && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-amber-500" /> AI Runway Advice</CardTitle>
+              <Button variant="outline" size="sm" onClick={handleAIAdvice} disabled={isAILoading} className="gap-1">
+                {isAILoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {aiAdvice ? 'Refresh' : 'Get Advice'}
+              </Button>
+            </div>
+          </CardHeader>
+          {aiAdvice && (
+            <CardContent>
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-4">
+                {aiAdvice.split('\n').filter(Boolean).map((line, i) => (
+                  <p key={i} className="text-sm text-amber-900 dark:text-amber-200 mb-2 last:mb-0">{line}</p>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
     </div>
   )
 }

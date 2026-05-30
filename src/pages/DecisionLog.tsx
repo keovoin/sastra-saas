@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Scale, Calendar, User, ArrowRight } from 'lucide-react'
+import { Plus, Scale, Calendar, User, ArrowRight, Sparkles, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { isAIConfigured, askAI } from '@/lib/ai'
 
 
 interface Decision { id: string; title: string; date: string; decider: string; context: string; alternatives: string[]; outcome: string; status: 'Decided' | 'Pending' | 'Revisit' }
@@ -22,6 +23,22 @@ export function DecisionLog() {
   const [decisions, setDecisions] = useState<Decision[]>(defaultDecisions)
   const [isCreating, setIsCreating] = useState(false)
   const [form, setForm] = useState({ title: '', decider: '', context: '', alternatives: '', outcome: '' })
+  const [isAILoading, setIsAILoading] = useState(false)
+
+  const handleAISuggestAlternatives = async () => {
+    if (!form.title.trim() && !form.context.trim()) { toast.error('Add a title or context first'); return }
+    setIsAILoading(true)
+    const result = await askAI(
+      `I need to make a decision about: "${form.title}". Context: "${form.context || 'No additional context'}".
+Please suggest 4 alternative approaches I should consider. Format each on a new line, be specific and actionable (1 sentence each). No numbering, no bullets.`
+    )
+    setIsAILoading(false)
+    if (result.success) {
+      const lines = result.content.split('\n').filter((l) => l.trim().length > 5).slice(0, 5)
+      setForm((prev) => ({ ...prev, alternatives: lines.join('\n') }))
+      toast.success('AI generated alternatives!')
+    } else { toast.error('AI failed', { description: result.error }) }
+  }
 
   const handleCreate = () => {
     if (!form.title.trim()) return
@@ -41,7 +58,7 @@ export function DecisionLog() {
           <div className="space-y-2"><Label>Decision Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g., Adopt trunk-based development" /></div>
           <div className="space-y-2"><Label>Decision Maker</Label><Input value={form.decider} onChange={(e) => setForm({ ...form, decider: e.target.value })} placeholder="Who made this decision?" /></div>
           <div className="space-y-2"><Label>Context / Problem</Label><textarea className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={form.context} onChange={(e) => setForm({ ...form, context: e.target.value })} placeholder="What problem or situation prompted this decision?" /></div>
-          <div className="space-y-2"><Label>Alternatives Considered (one per line)</Label><textarea className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={form.alternatives} onChange={(e) => setForm({ ...form, alternatives: e.target.value })} placeholder="Option A&#10;Option B&#10;Option C" /></div>
+          <div className="space-y-2"><Label>Alternatives Considered (one per line)</Label><textarea className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={form.alternatives} onChange={(e) => setForm({ ...form, alternatives: e.target.value })} placeholder="Option A&#10;Option B&#10;Option C" />{isAIConfigured() && (<Button variant="outline" size="sm" className="mt-1 gap-1 text-xs" onClick={handleAISuggestAlternatives} disabled={isAILoading}>{isAILoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-amber-500" />}AI Suggest Alternatives</Button>)}</div>
           <div className="space-y-2"><Label>Outcome / Final Decision</Label><Input value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} placeholder="What was decided? Leave blank if pending." /></div>
           <div className="flex gap-2"><Button onClick={handleCreate} disabled={!form.title.trim()}>Save Decision</Button><Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button></div>
         </CardContent></Card>
