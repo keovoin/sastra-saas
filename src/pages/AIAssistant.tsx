@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useBusinessOS } from '@/context/BusinessContext'
+import { getStoredApiKey, getStoredModel } from '@/pages/Settings'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Sparkles, Loader2, Plus, TrendingUp, TrendingDown, Lightbulb,
-  AlertTriangle, Building2, Globe, Cpu, ShoppingCart,
+  AlertTriangle, Building2, Globe, Cpu, ShoppingCart, Key, Settings,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -181,13 +182,72 @@ export function AIAssistant() {
     setSuggestions(null)
     setAddedItems(new Set())
 
-    // Simulate AI thinking time
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const apiKey = getStoredApiKey()
+    const model = getStoredModel()
 
-    const result = industrySuggestions[selectedIndustry]
-    setSuggestions(result)
+    if (apiKey) {
+      // ─── Real AI Generation via OpenAI ─────────────────────────────────────
+      try {
+        const prompt = `You are a senior business strategy consultant. Perform a SWOT analysis for a company in the "${selectedIndustry}" industry.${companyContext ? ` Additional context: ${companyContext}` : ''}
+
+Return EXACTLY this JSON format (no markdown, no code blocks, just raw JSON):
+{
+  "strengths": ["item1", "item2", "item3", "item4"],
+  "weaknesses": ["item1", "item2", "item3", "item4"],
+  "opportunities": ["item1", "item2", "item3", "item4"],
+  "threats": ["item1", "item2", "item3", "item4"]
+}
+
+Each item should be a specific, actionable insight (1-2 sentences). Focus on current market conditions and trends.`
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.8,
+            max_tokens: 1000,
+          }),
+        })
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err?.error?.message || `API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        const content = data.choices?.[0]?.message?.content || ''
+
+        // Parse JSON from response (handle potential markdown code blocks)
+        const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        const parsed = JSON.parse(jsonStr)
+
+        if (parsed.strengths && parsed.weaknesses && parsed.opportunities && parsed.threats) {
+          setSuggestions(parsed)
+          toast.success('AI analysis complete!', { description: `Generated using ${model}` })
+        } else {
+          throw new Error('Invalid response format')
+        }
+      } catch (error: any) {
+        console.error('OpenAI error:', error)
+        toast.error('AI generation failed', { description: error.message || 'Falling back to built-in suggestions.' })
+        // Fallback to built-in suggestions
+        const result = industrySuggestions[selectedIndustry]
+        setSuggestions(result)
+      }
+    } else {
+      // ─── Built-in Suggestions (no API key) ─────────────────────────────────
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const result = industrySuggestions[selectedIndustry]
+      setSuggestions(result)
+      toast.success('Strategy suggestions generated!', { description: `Based on ${selectedIndustry} industry analysis. Add your OpenAI key in Settings for AI-powered suggestions.` })
+    }
+
     setIsGenerating(false)
-    toast.success('Strategy suggestions generated!', { description: `Based on ${selectedIndustry} industry analysis.` })
   }
 
   const handleAddToBoard = async (text: string, category: SwotCategory) => {
@@ -213,6 +273,32 @@ export function AIAssistant() {
           Generate SWOT analysis suggestions tailored to your industry. Add the best ones directly to your Strategy Board.
         </p>
       </div>
+
+      {/* API Key Status Banner */}
+      {!getStoredApiKey() ? (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Key className="h-4 w-4 text-amber-600" />
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              <span className="font-medium">No API key configured.</span>{' '}
+              Using built-in suggestions. Add your OpenAI key for AI-powered generation.
+            </p>
+          </div>
+          <a href="#" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('navigate', { detail: 'settings' })) }}>
+            <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-accent">
+              <Settings className="h-3 w-3" /> Settings
+            </Badge>
+          </a>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-4 py-3">
+          <Sparkles className="h-4 w-4 text-emerald-600" />
+          <p className="text-sm text-emerald-800 dark:text-emerald-200">
+            <span className="font-medium">AI-powered mode active.</span>{' '}
+            Using {getStoredModel()} for real-time strategy generation.
+          </p>
+        </div>
+      )}
 
       {/* Input Section */}
       <Card>
