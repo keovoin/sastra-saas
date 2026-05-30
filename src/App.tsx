@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { BusinessOSProvider } from '@/context/BusinessContext'
+import { Analytics } from '@vercel/analytics/react'
 import { Layout } from '@/components/Layout'
 import { PrintView } from '@/components/PrintView'
 import { LandingPage } from '@/components/LandingPage'
@@ -102,13 +103,14 @@ function App() {
     )
   }
 
-  if (session) return <><AuthenticatedApp session={session} /><Toaster position="bottom-right" richColors closeButton /><SpeedInsights /></>
-  if (showAuth) return <><AuthScreen /><Toaster position="bottom-right" richColors closeButton /><SpeedInsights /></>
+  if (session) return <><AuthenticatedApp session={session} /><Toaster position="bottom-right" richColors closeButton /><Analytics /><SpeedInsights /></>
+  if (showAuth) return <><AuthScreen /><Toaster position="bottom-right" richColors closeButton /><Analytics /><SpeedInsights /></>
 
   return (
     <>
       <LandingPage onGetStarted={() => setShowAuth(true)} />
       <Toaster position="bottom-right" richColors closeButton />
+      <Analytics />
       <SpeedInsights />
     </>
   )
