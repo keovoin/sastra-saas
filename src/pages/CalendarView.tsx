@@ -34,7 +34,26 @@ const TYPE_LABELS: Record<CalendarEvent['type'], string> = {
 
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [events, setEvents] = useState<CalendarEvent[]>(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = now.getMonth() + 1
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return [
+      { id: '1', title: 'Sprint Planning', date: `${y}-${pad(m)}-03`, type: 'meeting', description: 'Bi-weekly sprint planning', color: TYPE_COLORS.meeting },
+      { id: '2', title: 'Risk Review Meeting', date: `${y}-${pad(m)}-05`, type: 'risk-review', description: 'Monthly risk register review', color: TYPE_COLORS['risk-review'] },
+      { id: '3', title: 'Deal follow-up: Acme Corp', date: `${y}-${pad(m)}-07`, type: 'deal-followup', description: 'Send proposal follow-up', color: TYPE_COLORS['deal-followup'] },
+      { id: '4', title: 'Platform v2.0 Launch', date: `${y}-${pad(m)}-15`, type: 'milestone', description: 'Major release milestone', color: TYPE_COLORS.milestone },
+      { id: '5', title: 'Security audit deadline', date: `${y}-${pad(m)}-08`, type: 'task-due', description: 'Complete penetration test fixes', color: TYPE_COLORS['task-due'] },
+      { id: '6', title: 'Board Meeting', date: `${y}-${pad(m)}-20`, type: 'meeting', description: 'Quarterly board update', color: TYPE_COLORS.meeting },
+      { id: '7', title: 'Team Offsite', date: `${y}-${pad(m)}-22`, type: 'custom', description: 'Team building day', color: TYPE_COLORS.custom },
+      { id: '8', title: 'API Docs Due', date: `${y}-${pad(m)}-25`, type: 'task-due', description: 'Developer docs deadline', color: TYPE_COLORS['task-due'] },
+      { id: '9', title: 'Stripe integration demo', date: `${y}-${pad(m)}-12`, type: 'milestone', description: 'Internal demo of payments', color: TYPE_COLORS.milestone },
+      { id: '10', title: 'Sales Pipeline Review', date: `${y}-${pad(m)}-18`, type: 'meeting', description: 'Weekly pipeline standup', color: TYPE_COLORS.meeting },
+      { id: '11', title: 'Follow-up: CloudNine', date: `${y}-${pad(m)}-10`, type: 'deal-followup', description: 'Negotiate payment terms', color: TYPE_COLORS['deal-followup'] },
+      { id: '12', title: 'Investor Update Email', date: `${y}-${pad(m)}-28`, type: 'task-due', description: 'Monthly investor newsletter', color: TYPE_COLORS['task-due'] },
+    ]
+  })
   const [showCreate, setShowCreate] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [form, setForm] = useState({ title: '', date: '', type: 'custom' as CalendarEvent['type'], description: '' })

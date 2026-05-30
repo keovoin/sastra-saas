@@ -34,6 +34,7 @@ import { Messaging } from '@/pages/Messaging'
 import { BillingPlans } from '@/pages/BillingPlans'
 import { StaffWorkload } from '@/pages/StaffWorkload'
 import { UserProfile } from '@/pages/UserProfile'
+import { RACIMatrix } from '@/pages/RACIMatrix'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Toaster } from 'sonner'
 import { SpeedInsights } from '@vercel/speed-insights/react'
@@ -76,6 +77,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
       case 'activity': return <ActivityFeed />
       case 'ai-assistant': return <AIAssistant />
       case 'user-profile': return <UserProfile />
+      case 'raci': return <RACIMatrix />
       case 'billing': return <BillingPlans />
       case 'profile': return <ProfilePage />
       case 'settings': return <Settings />

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useBusinessOS } from '@/context/BusinessContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -75,68 +76,61 @@ const initialSections: DeckSection[] = [
 ]
 
 
-const SECTION_PROMPTS: Record<string, string> = {
-  'executive-summary': `Write a concise executive summary for a board meeting deck for ${MOCK_CONTEXT.companyName}.
-Key facts: MRR $${MOCK_CONTEXT.mrr.toLocaleString()} (+${MOCK_CONTEXT.mrrGrowth}% MoM), ${MOCK_CONTEXT.activeCustomers} customers, ${MOCK_CONTEXT.teamSize} team members, ${MOCK_CONTEXT.runway} months runway.
-Strategic goal: ${MOCK_CONTEXT.strategicGoal}
-Write 3-4 paragraphs covering: status overview, key wins this month, top challenges, and outlook. Be professional but concise.`,
-
-  'key-metrics': `Create a metrics summary for a board deck. Format as a structured report.
-Current metrics for ${MOCK_CONTEXT.companyName}:
-- MRR: $${MOCK_CONTEXT.mrr.toLocaleString()} (+${MOCK_CONTEXT.mrrGrowth}% MoM)
-- Active Customers: ${MOCK_CONTEXT.activeCustomers}
-- Monthly Churn: ${MOCK_CONTEXT.churnRate}%
-- NPS Score: ${MOCK_CONTEXT.nps}
-- Pipeline Value: $${MOCK_CONTEXT.pipeline.toLocaleString()}
-- Team Size: ${MOCK_CONTEXT.teamSize}
-Present these with context (whether trending up/down, vs targets). Format clearly for board consumption.`,
-
-  'risk-overview': `Write a risk overview section for a board meeting deck.
-Company: ${MOCK_CONTEXT.companyName}
-Top identified risk: ${MOCK_CONTEXT.topRisk}
-Additional context: ${MOCK_CONTEXT.runway} months runway, ${MOCK_CONTEXT.churnRate}% churn, growing team of ${MOCK_CONTEXT.teamSize}.
-List 3-4 key risks with severity, likelihood, mitigation status, and owner. Format professionally.`,
-
-  'strategic-progress': `Write a strategic progress update for a board deck.
-Company: ${MOCK_CONTEXT.companyName}
-Strategic Goal: ${MOCK_CONTEXT.strategicGoal}
-Current MRR: $${MOCK_CONTEXT.mrr.toLocaleString()} (need $200K)
-Pipeline: $${MOCK_CONTEXT.pipeline.toLocaleString()}
-Cover: progress against OKRs, roadmap milestones hit/missed, competitive wins, strategic decisions made. Be specific and measurable.`,
-
-  'financial-health': `Write a financial health section for a board deck.
-Company: ${MOCK_CONTEXT.companyName}
-- MRR: $${MOCK_CONTEXT.mrr.toLocaleString()}
-- MRR Growth: ${MOCK_CONTEXT.mrrGrowth}% MoM
-- Runway: ${MOCK_CONTEXT.runway} months
-- Churn: ${MOCK_CONTEXT.churnRate}%
-- Customers: ${MOCK_CONTEXT.activeCustomers}
-Cover: revenue trajectory, burn rate commentary, unit economics health, and fundraising considerations. Professional board-level language.`,
-
-  'team-updates': `Write a team updates section for a board deck.
-Company: ${MOCK_CONTEXT.companyName}
-Team size: ${MOCK_CONTEXT.teamSize}
-Context: Engineering hiring is a top risk. Team pulse scores trending positive (4.2/5 average).
-Cover: recent hires, open roles, team sentiment, any org changes, culture initiatives. Keep it brief but informative for board members.`,
-}
+// Prompts are now built dynamically in buildPrompt()
 
 
 export function BoardDeckGenerator() {
+  const { risks, swotItems, charters, activeProject } = useBusinessOS()
   const [sections, setSections] = useState<DeckSection[]>(initialSections)
   const [generatingAll, setGeneratingAll] = useState(false)
 
+  // Build context from real data + demo defaults
+  const context = {
+    companyName: activeProject?.title || 'Sastra Technologies',
+    mrr: MOCK_CONTEXT.mrr,
+    mrrGrowth: MOCK_CONTEXT.mrrGrowth,
+    runway: MOCK_CONTEXT.runway,
+    teamSize: MOCK_CONTEXT.teamSize,
+    activeCustomers: MOCK_CONTEXT.activeCustomers,
+    churnRate: MOCK_CONTEXT.churnRate,
+    nps: MOCK_CONTEXT.nps,
+    pipeline: MOCK_CONTEXT.pipeline,
+    topRisk: risks.length > 0 ? risks[0].description : MOCK_CONTEXT.topRisk,
+    strategicGoal: MOCK_CONTEXT.strategicGoal,
+    totalRisks: risks.length,
+    activeRisks: risks.filter(r => r.status === 'Active').length,
+    highSeverityRisks: risks.filter(r => r.severity > 15).length,
+    swotCount: swotItems.length,
+    strengths: swotItems.filter(s => s.type === 'strength').map(s => s.content).join('; '),
+    weaknesses: swotItems.filter(s => s.type === 'weakness').map(s => s.content).join('; '),
+    charterCount: charters.length,
+  }
+
+  const buildPrompt = (sectionId: string): string => {
+    const baseContext = `Company: ${context.companyName}\nMRR: $${context.mrr.toLocaleString()} (+${context.mrrGrowth}% MoM)\nCustomers: ${context.activeCustomers}\nTeam: ${context.teamSize}\nRunway: ${context.runway} months\nChurn: ${context.churnRate}%\nNPS: ${context.nps}\nPipeline: $${context.pipeline.toLocaleString()}\nStrategic Goal: ${context.strategicGoal}`
+    const riskContext = context.totalRisks > 0 ? `\nRisks tracked: ${context.totalRisks} (${context.activeRisks} active, ${context.highSeverityRisks} high severity)\nTop risk: ${context.topRisk}` : `\nTop risk: ${context.topRisk}`
+    const swotContext = context.swotCount > 0 ? `\nSWOT items: ${context.swotCount}\nStrengths: ${context.strengths || 'None recorded'}\nWeaknesses: ${context.weaknesses || 'None recorded'}` : ''
+
+    switch (sectionId) {
+      case 'executive-summary': return `Write a concise executive summary for a board meeting deck.\n${baseContext}${riskContext}\nWrite 3-4 paragraphs covering: status overview, key wins, top challenges, and outlook. Professional but concise.`
+      case 'key-metrics': return `Create a metrics summary for a board deck. Format as a structured report.\n${baseContext}\nPresent with context (trending, vs targets). Format clearly for board consumption.`
+      case 'risk-overview': return `Write a risk overview section for a board meeting deck.\n${baseContext}${riskContext}\nList 3-4 key risks with severity, likelihood, mitigation status, and owner. Format professionally.`
+      case 'strategic-progress': return `Write a strategic progress update for a board deck.\n${baseContext}${swotContext}\nCover: progress against goals, roadmap milestones, competitive wins. Be specific and measurable.`
+      case 'financial-health': return `Write a financial health section for a board deck.\n${baseContext}\nCover: revenue trajectory, burn rate, unit economics health, fundraising considerations. Board-level language.`
+      case 'team-updates': return `Write a team updates section for a board deck.\n${baseContext}${riskContext}\nCover: recent hires, open roles, team sentiment, org changes. Brief but informative.`
+      default: return ''
+    }
+  }
+
   const generateSection = async (sectionId: string) => {
     setSections(prev => prev.map(s => s.id === sectionId ? { ...s, generating: true } : s))
-
-    const prompt = SECTION_PROMPTS[sectionId]
+    const prompt = buildPrompt(sectionId)
     if (!prompt) {
       toast.error('No prompt configured for this section')
       setSections(prev => prev.map(s => s.id === sectionId ? { ...s, generating: false } : s))
       return
     }
-
     const result = await askAI(prompt)
-
     if (result.success) {
       setSections(prev => prev.map(s => s.id === sectionId ? { ...s, content: result.content, generating: false } : s))
       toast.success(`Generated: ${sections.find(s => s.id === sectionId)?.title}`)
@@ -208,35 +202,35 @@ export function BoardDeckGenerator() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">MRR</p>
-              <p className="text-lg font-bold text-foreground">${MOCK_CONTEXT.mrr.toLocaleString()}</p>
+              <p className="text-lg font-bold text-foreground">${context.mrr.toLocaleString()}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Growth</p>
-              <p className="text-lg font-bold text-green-600">+{MOCK_CONTEXT.mrrGrowth}% MoM</p>
+              <p className="text-lg font-bold text-green-600">+{context.mrrGrowth}% MoM</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Customers</p>
-              <p className="text-lg font-bold text-foreground">{MOCK_CONTEXT.activeCustomers}</p>
+              <p className="text-lg font-bold text-foreground">{context.activeCustomers}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Runway</p>
-              <p className="text-lg font-bold text-foreground">{MOCK_CONTEXT.runway} months</p>
+              <p className="text-lg font-bold text-foreground">{context.runway} months</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Team Size</p>
-              <p className="text-lg font-bold text-foreground">{MOCK_CONTEXT.teamSize}</p>
+              <p className="text-lg font-bold text-foreground">{context.teamSize}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Churn</p>
-              <p className="text-lg font-bold text-foreground">{MOCK_CONTEXT.churnRate}%</p>
+              <p className="text-lg font-bold text-foreground">{context.churnRate}%</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
-              <p className="text-xs text-muted-foreground">NPS</p>
-              <p className="text-lg font-bold text-foreground">{MOCK_CONTEXT.nps}</p>
+              <p className="text-xs text-muted-foreground">Risks Tracked</p>
+              <p className="text-lg font-bold text-foreground">{context.totalRisks}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">Pipeline</p>
-              <p className="text-lg font-bold text-foreground">${(MOCK_CONTEXT.pipeline / 1000).toFixed(0)}K</p>
+              <p className="text-lg font-bold text-foreground">${(context.pipeline / 1000).toFixed(0)}K</p>
             </div>
           </div>
         </CardContent>
@@ -306,7 +300,7 @@ export function BoardDeckGenerator() {
           <CardContent>
             <div className="space-y-6 p-6 bg-white dark:bg-slate-900 rounded-lg border border-border">
               <div className="text-center border-b border-border pb-6">
-                <h2 className="text-2xl font-bold text-foreground">{MOCK_CONTEXT.companyName}</h2>
+                <h2 className="text-2xl font-bold text-foreground">{context.companyName}</h2>
                 <p className="text-muted-foreground">Board Update — {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
               </div>
               {sections.filter(s => s.content).map(section => (

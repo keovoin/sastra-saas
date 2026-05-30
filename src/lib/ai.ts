@@ -63,6 +63,9 @@ export async function askAI(prompt: string): Promise<AIResponse> {
       return { success: false, content: '', error: 'Request timed out after 30 seconds.' }
     }
     const message = error instanceof Error ? error.message : 'Connection failed'
+    if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
+      return { success: false, content: '', error: 'Cannot reach AI endpoint (CORS/network error). Go to Settings and verify your provider URL is correct. Groq URL should be: https://api.groq.com/openai/v1' }
+    }
     return { success: false, content: '', error: message }
   }
 }

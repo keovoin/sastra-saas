@@ -94,7 +94,7 @@ export function Settings() {
       setIsKeyValid(false)
       const msg = e instanceof Error ? e.message : 'Unknown error'
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        toast.error('Cannot reach endpoint', { description: 'This is likely a CORS issue. The endpoint URL must allow browser requests. Try using the /v1 path (e.g., https://api.groq.com/openai/v1).' })
+        toast.error('Cannot reach endpoint', { description: 'CORS error — this provider may not support direct browser requests. Groq, Together AI, and OpenRouter all support CORS. Make sure the URL ends with /v1.' })
       } else {
         toast.error('Connection failed', { description: msg })
       }
@@ -125,7 +125,7 @@ export function Settings() {
               </div>
               <div>
                 <CardTitle className="text-base">AI Strategy Assistant</CardTitle>
-                <CardDescription>Bring your own OpenAI key for AI-powered SWOT generation.</CardDescription>
+                <CardDescription>Connect any OpenAI-compatible provider (Groq, Together, OpenRouter, etc). Your key stays in your browser.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -148,7 +148,7 @@ export function Settings() {
 
             {/* API Key Input */}
             <div className="space-y-2">
-              <Label htmlFor="api-key">OpenAI API Key</Label>
+              <Label htmlFor="api-key">API Key</Label>
               <div className="relative">
                 <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -210,6 +210,7 @@ export function Settings() {
               />
               <p className="text-xs text-muted-foreground">
                 Must be OpenAI-compatible (supports /chat/completions endpoint).
+                {provider === 'groq' && <span className="block mt-1 text-amber-600">Note: The "/openai/" in Groq's URL is just their compatibility path — it still uses YOUR Groq key and Groq models, not OpenAI.</span>}
               </p>
             </div>
 

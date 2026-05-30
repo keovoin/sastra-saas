@@ -71,7 +71,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
           <div className="hidden md:flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={onGetStarted}>Sign In</Button>
-            <Button size="sm" onClick={onGetStarted} className="gap-2">Get Started <ArrowRight className="h-4 w-4" /></Button>
+            <Button size="sm" onClick={onGetStarted} className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white border-0">Get Started <ArrowRight className="h-4 w-4" /></Button>
           </div>
           <button onClick={() => setMobileNav(!mobileNav)} className="md:hidden p-2 text-muted-foreground">
             {mobileNav ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -82,7 +82,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             <button onClick={() => scrollTo('features')} className="block w-full text-left text-sm py-2">Features</button>
             <button onClick={() => scrollTo('pricing')} className="block w-full text-left text-sm py-2">Pricing</button>
             <button onClick={() => scrollTo('testimonials')} className="block w-full text-left text-sm py-2">Testimonials</button>
-            <Button className="w-full mt-2" onClick={onGetStarted}>Get Started</Button>
+            <Button className="w-full mt-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white" onClick={onGetStarted}>Get Started</Button>
           </div>
         )}
       </nav>
@@ -182,7 +182,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* ─── Features Grid ────────────────────────────────────────────────────── */}
       <section id="features" className="mx-auto max-w-6xl px-4 sm:px-6 py-20 border-t border-border">
         <div className="text-center mb-12">
-          <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Features</p>
+          <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-2">Features</p>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">21 Modules. One Platform.</h2>
           <p className="mt-3 text-lg text-muted-foreground max-w-xl mx-auto">Everything you need to run strategy, operations, finance, and people — integrated and AI-enhanced.</p>
         </div>
@@ -203,7 +203,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       <section id="how-it-works" className="border-t border-border bg-muted/20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
           <div className="text-center mb-12">
-            <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">How It Works</p>
+            <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-2">How It Works</p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Up and Running in 60 Seconds</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -213,7 +213,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               { step: '3', title: 'Invite Your Team', description: 'Add team members with role-based access. Collaborate in real-time.' },
             ].map((s) => (
               <div key={s.step} className="text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground text-lg font-bold mb-4">{s.step}</div>
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 text-white text-lg font-bold mb-4">{s.step}</div>
                 <h3 className="text-lg font-semibold mb-2">{s.title}</h3>
                 <p className="text-sm text-muted-foreground">{s.description}</p>
               </div>
@@ -237,7 +237,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   <li key={item} className="flex items-start gap-2 text-sm"><CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />{item}</li>
                 ))}
               </ul>
-              <Button className="mt-6 gap-2" onClick={onGetStarted}><Sparkles className="h-4 w-4" /> Try AI Features</Button>
+              <Button className="mt-6 gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white" onClick={onGetStarted}><Sparkles className="h-4 w-4" /> Try AI Features</Button>
             </div>
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground"><Sparkles className="h-3.5 w-3.5 text-amber-500" /> AI Strategy Assistant</div>
@@ -257,7 +257,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       <section id="testimonials" className="border-t border-border bg-muted/20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
           <div className="text-center mb-12">
-            <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Testimonials</p>
+            <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-2">Testimonials</p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Loved by Strategy Teams</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -282,7 +282,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       <section id="pricing" className="border-t border-border">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
           <div className="text-center mb-12">
-            <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Pricing</p>
+            <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-2">Pricing</p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Simple, Transparent Pricing</h2>
             <p className="mt-3 text-muted-foreground">Start free. Upgrade when you're ready.</p>
           </div>
@@ -297,7 +297,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                     <span className="text-4xl font-bold">{plan.price}</span>
                     {plan.price !== 'Free' && plan.price !== 'Custom' && <span className="text-muted-foreground text-sm">/month</span>}
                   </div>
-                  <Button onClick={onGetStarted} className={`w-full ${plan.highlight ? '' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>{plan.cta}</Button>
+                  <Button onClick={onGetStarted} className={`w-full ${plan.highlight ? 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>{plan.cta}</Button>
                   <ul className="mt-6 space-y-2">
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-center gap-2 text-sm"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />{f}</li>

@@ -72,7 +72,20 @@ const LABEL_COLORS = [
 
 export function ProjectBoard() {
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS)
-  const [tasks, setTasks] = useState<TaskCard[]>([])
+  const [tasks, setTasks] = useState<TaskCard[]>([
+    { id: '1', title: 'Design new onboarding flow', description: 'Create wireframes and prototype for the user onboarding experience', assignee: 'Sarah Chen', priority: 'P1', labels: ['design', 'ux'], dueDate: '2025-04-15', comments: [{ id: 'c1', author: 'Marcus', text: 'Should we include social login?', date: '2025-03-20T10:00:00Z' }], columnId: 'in-progress', order: 0, createdAt: '2025-03-10T08:00:00Z' },
+    { id: '2', title: 'Implement Stripe integration', description: 'Connect payment processing for Pro plan upgrades', assignee: 'James Park', priority: 'P1', labels: ['backend', 'payments'], dueDate: '2025-04-20', comments: [], columnId: 'todo', order: 0, createdAt: '2025-03-12T09:00:00Z' },
+    { id: '3', title: 'Write API documentation', description: 'Document all REST endpoints for external developers', assignee: 'Emily Watson', priority: 'P3', labels: ['docs'], dueDate: '2025-04-30', comments: [], columnId: 'backlog', order: 0, createdAt: '2025-03-08T14:00:00Z' },
+    { id: '4', title: 'Fix mobile nav overflow', description: 'Sidebar items overflow on small screens causing horizontal scroll', assignee: 'Alex Kim', priority: 'P2', labels: ['bug', 'frontend'], dueDate: '2025-04-10', comments: [], columnId: 'review', order: 0, createdAt: '2025-03-15T11:00:00Z' },
+    { id: '5', title: 'Set up CI/CD pipeline', description: 'Configure GitHub Actions for automated testing and deployment', assignee: 'James Park', priority: 'P2', labels: ['devops'], dueDate: '2025-04-18', comments: [], columnId: 'done', order: 0, createdAt: '2025-03-05T10:00:00Z' },
+    { id: '6', title: 'Customer feedback survey', description: 'Design and send NPS survey to all active users', assignee: 'Lisa Thompson', priority: 'P3', labels: ['product'], dueDate: '2025-04-25', comments: [], columnId: 'todo', order: 1, createdAt: '2025-03-18T09:00:00Z' },
+    { id: '7', title: 'Database optimization', description: 'Add indexes and optimize slow queries on risks/charters tables', assignee: 'Alex Kim', priority: 'P2', labels: ['backend', 'performance'], dueDate: '2025-04-12', comments: [{ id: 'c2', author: 'Sarah', text: 'Query times are 3x slower since last deploy', date: '2025-03-22T14:30:00Z' }], columnId: 'in-progress', order: 1, createdAt: '2025-03-14T16:00:00Z' },
+    { id: '8', title: 'Landing page A/B test', description: 'Test two hero variants for conversion rate improvement', assignee: 'Sarah Chen', priority: 'P4', labels: ['marketing'], dueDate: '2025-05-01', comments: [], columnId: 'backlog', order: 1, createdAt: '2025-03-20T10:00:00Z' },
+    { id: '9', title: 'Security audit fixes', description: 'Address findings from Q1 penetration test report', assignee: 'Marcus Rivera', priority: 'P1', labels: ['security', 'compliance'], dueDate: '2025-04-08', comments: [], columnId: 'in-progress', order: 2, createdAt: '2025-03-11T08:00:00Z' },
+    { id: '10', title: 'Dark mode polish', description: 'Fix contrast issues in charts and cards in dark mode', assignee: 'Emily Watson', priority: 'P4', labels: ['frontend', 'design'], dueDate: '2025-05-10', comments: [], columnId: 'backlog', order: 2, createdAt: '2025-03-22T11:00:00Z' },
+    { id: '11', title: 'Email notification system', description: 'Set up transactional emails for invites, risk alerts, and task assignments', assignee: 'James Park', priority: 'P2', labels: ['backend', 'notifications'], dueDate: '2025-04-22', comments: [], columnId: 'todo', order: 2, createdAt: '2025-03-19T13:00:00Z' },
+    { id: '12', title: 'Competitor analysis Q2', description: 'Research and document competitor feature updates and pricing changes', assignee: 'Lisa Thompson', priority: 'P3', labels: ['research', 'strategy'], dueDate: '2025-04-28', comments: [], columnId: 'backlog', order: 3, createdAt: '2025-03-21T09:00:00Z' },
+  ])
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskCard | null>(null)
   const [detailTask, setDetailTask] = useState<TaskCard | null>(null)
