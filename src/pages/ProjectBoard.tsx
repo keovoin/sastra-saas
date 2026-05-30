@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,10 +9,10 @@ import {
 } from '@/components/ui/dialog'
 import {
   KanbanSquare, Plus, Sparkles, GripVertical, Calendar,
-  User, Flag, Tag, MessageSquare, Filter, Search, X, Edit2, Trash2, AlertTriangle,
+  MessageSquare, Filter, Search, X, Edit2, Trash2, AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { isAIConfigured, askAI, askAIJson } from '@/lib/ai'
+import { isAIConfigured, askAIJson } from '@/lib/ai'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Priority = 'P1' | 'P2' | 'P3' | 'P4'
