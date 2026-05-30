@@ -1,177 +1,74 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react'
+import { supabase } from '@/lib/supabase'
+import type {
+  Profile,
+  Project,
+  Risk,
+  RiskInsert,
+  RiskUpdate,
+  SwotItem,
+  SwotItemInsert,
+  SwotItemUpdate,
+  Charter,
+  CharterInsert,
+  CharterUpdate,
+  SwotType,
+  Priority,
+  RiskStatus,
+  UserRole,
+} from '@/types/database'
+import type { Session, RealtimeChannel } from '@supabase/supabase-js'
 import { toast } from 'sonner'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Re-export types for consumer convenience ────────────────────────────────
+export type { Profile, Project, Risk, SwotItem, Charter, SwotType, Priority, RiskStatus, UserRole }
 
-export type Priority = 'Low' | 'Medium' | 'High'
-export type SwotCategory = 'strengths' | 'weaknesses' | 'opportunities' | 'threats'
-export type RiskStatus = 'Active' | 'Mitigated' | 'Watch'
-export type UserRole = 'admin' | 'viewer'
-
-export interface UserPersona {
-  id: string
-  name: string
-  email: string
-  initials: string
-  role: UserRole
-  gradient: string
-}
-
-export interface SwotItem {
-  id: string
-  text: string
-  priority: Priority
-  category: SwotCategory
-}
-
-export interface RiskItem {
-  id: string
-  description: string
-  probability: number
-  impact: number
-  severity: number
-  owner: string
-  ownerAvatar: string
-  status: RiskStatus
-}
-
-export interface ProjectCharter {
-  id: string
-  name: string
-  sponsor: string
-  startDate: string
-  inScope: string[]
-  outOfScope: string[]
-  teamMembers: string[]
-  createdAt: string
-}
-
-interface DataStore {
-  swotItems: SwotItem[]
-  risks: RiskItem[]
-  charters: ProjectCharter[]
-}
+// ─── Context Value Interface ─────────────────────────────────────────────────
 
 interface BusinessOSContextValue {
-  // Auth / RBAC
-  activeUser: UserPersona
-  switchUser: (userId: string) => void
+  // Auth
+  session: Session | null
+  profile: Profile | null
   isAdmin: boolean
+  signOut: () => Promise<void>
 
-  // UI State
-  sidebarCollapsed: boolean
-  toggleSidebar: () => void
+  // Active Project
+  activeProject: Project | null
+  projects: Project[]
+  setActiveProjectId: (id: string) => void
+  createProject: (title: string, description?: string) => Promise<void>
+
+  // Loading States
+  isLoading: boolean
   isSaving: boolean
 
   // SWOT
   swotItems: SwotItem[]
-  addSwotItem: (item: Omit<SwotItem, 'id'>) => void
-  updateSwotItem: (id: string, updates: Partial<SwotItem>) => void
-  deleteSwotItem: (id: string) => void
+  addSwotItem: (item: Pick<SwotItemInsert, 'type' | 'content' | 'priority'>) => Promise<void>
+  updateSwotItem: (id: string, updates: SwotItemUpdate) => Promise<void>
+  deleteSwotItem: (id: string) => Promise<void>
 
   // Risks
-  risks: RiskItem[]
-  addRisk: (risk: Omit<RiskItem, 'id'>) => void
-  updateRisk: (id: string, updates: Partial<RiskItem>) => void
-  deleteRisk: (id: string) => void
+  risks: Risk[]
+  addRisk: (risk: Pick<RiskInsert, 'description' | 'probability' | 'impact' | 'owner_name' | 'status'>) => Promise<void>
+  updateRisk: (id: string, updates: RiskUpdate) => Promise<void>
+  deleteRisk: (id: string) => Promise<void>
 
-  // Project Charters
-  charters: ProjectCharter[]
-  addCharter: (charter: Omit<ProjectCharter, 'id' | 'createdAt'>) => void
+  // Charters
+  charters: Charter[]
+  addCharter: (charter: Pick<CharterInsert, 'name' | 'sponsor' | 'start_date' | 'in_scope' | 'out_of_scope' | 'team_members'>) => Promise<void>
+  updateCharter: (id: string, updates: CharterUpdate) => Promise<void>
+  deleteCharter: (id: string) => Promise<void>
 }
 
-// ─── User Personas ────────────────────────────────────────────────────────────
-
-export const PERSONAS: UserPersona[] = [
-  {
-    id: 'user-a',
-    name: 'John Doe',
-    email: 'john.doe@sastra.io',
-    initials: 'JD',
-    role: 'admin',
-    gradient: 'from-violet-500 to-indigo-600',
-  },
-  {
-    id: 'user-b',
-    name: 'Jane Smith',
-    email: 'jane.smith@sastra.io',
-    initials: 'JS',
-    role: 'viewer',
-    gradient: 'from-amber-500 to-orange-600',
-  },
-]
-
-// ─── Default Data ─────────────────────────────────────────────────────────────
-
-const DEFAULT_DATA: DataStore = {
-  swotItems: [
-    { id: 'swot-1', text: 'Strong engineering team with 15+ years average experience', priority: 'High', category: 'strengths' },
-    { id: 'swot-2', text: 'Proprietary ML pipeline reduces processing time by 60%', priority: 'High', category: 'strengths' },
-    { id: 'swot-3', text: 'Limited brand awareness in enterprise segment', priority: 'Medium', category: 'weaknesses' },
-    { id: 'swot-4', text: 'Technical debt in legacy payment module', priority: 'High', category: 'weaknesses' },
-    { id: 'swot-5', text: 'EU market expansion post-GDPR compliance certification', priority: 'High', category: 'opportunities' },
-    { id: 'swot-6', text: 'Partnership with Salesforce for CRM integration', priority: 'Medium', category: 'opportunities' },
-    { id: 'swot-7', text: 'New competitor funded $50M Series C in same vertical', priority: 'High', category: 'threats' },
-    { id: 'swot-8', text: 'Potential regulatory changes in data privacy (AI Act)', priority: 'Medium', category: 'threats' },
-  ],
-  risks: [
-    { id: 'RSK-001', description: 'Cloud infrastructure vendor lock-in with AWS services', probability: 4, impact: 4, severity: 16, owner: 'Sarah Chen', ownerAvatar: 'SC', status: 'Active' },
-    { id: 'RSK-002', description: 'Key engineer departure risk (bus factor = 1 on auth module)', probability: 3, impact: 5, severity: 15, owner: 'Marcus Johnson', ownerAvatar: 'MJ', status: 'Watch' },
-    { id: 'RSK-003', description: 'Third-party API deprecation (Stripe v2 sunset Q4)', probability: 5, impact: 4, severity: 20, owner: 'Priya Sharma', ownerAvatar: 'PS', status: 'Active' },
-    { id: 'RSK-004', description: 'Data breach through unpatched dependencies', probability: 2, impact: 5, severity: 10, owner: 'Alex Rivera', ownerAvatar: 'AR', status: 'Mitigated' },
-    { id: 'RSK-005', description: 'Market timing risk for Q3 product launch', probability: 3, impact: 3, severity: 9, owner: 'Sarah Chen', ownerAvatar: 'SC', status: 'Watch' },
-    { id: 'RSK-006', description: 'Compliance gap with SOC 2 Type II certification', probability: 4, impact: 5, severity: 20, owner: 'David Kim', ownerAvatar: 'DK', status: 'Active' },
-    { id: 'RSK-007', description: 'Customer churn due to slow feature delivery cadence', probability: 3, impact: 4, severity: 12, owner: 'Marcus Johnson', ownerAvatar: 'MJ', status: 'Watch' },
-    { id: 'RSK-008', description: 'Budget overrun on infrastructure scaling costs', probability: 4, impact: 3, severity: 12, owner: 'Priya Sharma', ownerAvatar: 'PS', status: 'Active' },
-  ],
-  charters: [
-    {
-      id: 'CHR-001',
-      name: 'Platform Migration to Kubernetes',
-      sponsor: 'CTO - Jennifer Walsh',
-      startDate: '2024-09-01',
-      inScope: ['Container orchestration', 'CI/CD pipeline update', 'Service mesh implementation'],
-      outOfScope: ['Database migration', 'Frontend rewrite'],
-      teamMembers: ['sarah@company.com', 'marcus@company.com', 'priya@company.com'],
-      createdAt: '2024-08-15',
-    },
-  ],
-}
-
-// ─── LocalStorage Helpers ─────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'sastra-bos-data'
-const USER_KEY = 'sastra-bos-user'
-
-function loadFromStorage(): DataStore {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return DEFAULT_DATA
-}
-
-function saveToStorage(data: DataStore) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  } catch {}
-}
-
-function loadActiveUser(): string {
-  try {
-    return localStorage.getItem(USER_KEY) || 'user-a'
-  } catch {
-    return 'user-a'
-  }
-}
-
-function saveActiveUser(userId: string) {
-  try {
-    localStorage.setItem(USER_KEY, userId)
-  } catch {}
-}
-
-// ─── Context ──────────────────────────────────────────────────────────────────
+// ─── Context ─────────────────────────────────────────────────────────────────
 
 const BusinessOSContext = createContext<BusinessOSContextValue | null>(null)
 
@@ -181,184 +78,511 @@ export function useBusinessOS() {
   return ctx
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ─── Provider ────────────────────────────────────────────────────────────────
 
-export function BusinessOSProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<DataStore>(loadFromStorage)
-  const [activeUserId, setActiveUserId] = useState<string>(loadActiveUser)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+interface ProviderProps {
+  children: React.ReactNode
+  session: Session
+}
+
+export function BusinessOSProvider({ children, session }: ProviderProps) {
+  // ─── State ──────────────────────────────────────────────────────────────────
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+  const [swotItems, setSwotItems] = useState<SwotItem[]>([])
+  const [risks, setRisks] = useState<Risk[]>([])
+  const [charters, setCharters] = useState<Charter[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const activeUser = PERSONAS.find((p) => p.id === activeUserId) || PERSONAS[0]
-  const isAdmin = activeUser.role === 'admin'
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
-  // Persist data to localStorage with simulated latency
-  const persistData = useCallback((newData: DataStore) => {
+  const userId = session.user.id
+  const isAdmin = profile?.role === 'admin'
+  const activeProject = projects.find((p) => p.id === activeProjectId) || null
+
+  // ─── Helper: Show saving state briefly ──────────────────────────────────────
+  const withSaving = useCallback(async (fn: () => Promise<void>) => {
     setIsSaving(true)
-
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-
-    saveTimeoutRef.current = setTimeout(() => {
-      saveToStorage(newData)
-      setIsSaving(false)
-    }, 600)
+    try {
+      await fn()
+    } finally {
+      // Small delay for UX consistency
+      setTimeout(() => setIsSaving(false), 300)
+    }
   }, [])
 
-  // Wrap state mutation with latency simulation
-  const mutateData = useCallback(
-    (updater: (prev: DataStore) => DataStore, successMessage?: string) => {
-      setData((prev) => {
-        const next = updater(prev)
-        persistData(next)
-        return next
+  // ─── Fetch Profile ──────────────────────────────────────────────────────────
+  const fetchProfile = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('Failed to fetch profile:', error)
+      return
+    }
+    setProfile(data)
+  }, [userId])
+
+  // ─── Fetch Projects ─────────────────────────────────────────────────────────
+  const fetchProjects = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Failed to fetch projects:', error)
+      return
+    }
+    setProjects(data || [])
+
+    // Auto-select first project if none selected
+    if (data && data.length > 0 && !activeProjectId) {
+      setActiveProjectId(data[0].id)
+    }
+  }, [userId, activeProjectId])
+
+  // ─── Fetch Project Data (risks, swot, charters) ────────────────────────────
+  const fetchProjectData = useCallback(async (projectId: string) => {
+    const [risksRes, swotRes, chartersRes] = await Promise.all([
+      supabase.from('risks').select('*').eq('project_id', projectId).order('severity', { ascending: false }),
+      supabase.from('swot_items').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
+      supabase.from('charters').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+    ])
+
+    if (risksRes.error) console.error('Fetch risks error:', risksRes.error)
+    if (swotRes.error) console.error('Fetch swot error:', swotRes.error)
+    if (chartersRes.error) console.error('Fetch charters error:', chartersRes.error)
+
+    setRisks(risksRes.data || [])
+    setSwotItems(swotRes.data || [])
+    setCharters(chartersRes.data || [])
+  }, [])
+
+  // ─── Initial Load ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true
+
+    async function init() {
+      setIsLoading(true)
+      await fetchProfile()
+      await fetchProjects()
+      if (mounted) setIsLoading(false)
+    }
+
+    init()
+    return () => { mounted = false }
+  }, [fetchProfile, fetchProjects])
+
+  // ─── Fetch data when active project changes ────────────────────────────────
+  useEffect(() => {
+    if (!activeProjectId) return
+    fetchProjectData(activeProjectId)
+  }, [activeProjectId, fetchProjectData])
+
+  // ─── Real-Time Subscription ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeProjectId) return
+
+    // Clean up previous channel
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+    }
+
+    const channel = supabase
+      .channel(`project-${activeProjectId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'risks', filter: `project_id=eq.${activeProjectId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setRisks((prev) => {
+              // Avoid duplicates from optimistic inserts
+              if (prev.some((r) => r.id === (payload.new as Risk).id)) return prev
+              return [...prev, payload.new as Risk].sort((a, b) => b.severity - a.severity)
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setRisks((prev) =>
+              prev.map((r) => (r.id === (payload.new as Risk).id ? (payload.new as Risk) : r))
+                .sort((a, b) => b.severity - a.severity)
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setRisks((prev) => prev.filter((r) => r.id !== (payload.old as { id: string }).id))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'swot_items', filter: `project_id=eq.${activeProjectId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setSwotItems((prev) => {
+              if (prev.some((s) => s.id === (payload.new as SwotItem).id)) return prev
+              return [...prev, payload.new as SwotItem]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setSwotItems((prev) =>
+              prev.map((s) => (s.id === (payload.new as SwotItem).id ? (payload.new as SwotItem) : s))
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setSwotItems((prev) => prev.filter((s) => s.id !== (payload.old as { id: string }).id))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'charters', filter: `project_id=eq.${activeProjectId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setCharters((prev) => {
+              if (prev.some((c) => c.id === (payload.new as Charter).id)) return prev
+              return [payload.new as Charter, ...prev]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setCharters((prev) =>
+              prev.map((c) => (c.id === (payload.new as Charter).id ? (payload.new as Charter) : c))
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setCharters((prev) => prev.filter((c) => c.id !== (payload.old as { id: string }).id))
+          }
+        }
+      )
+      .subscribe()
+
+    channelRef.current = channel
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [activeProjectId])
+
+  // ─── Auth ──────────────────────────────────────────────────────────────────
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut()
+  }, [])
+
+  // ─── Project CRUD ──────────────────────────────────────────────────────────
+  const createProject = useCallback(
+    async (title: string, description?: string) => {
+      await withSaving(async () => {
+        const { data, error } = await supabase
+          .from('projects')
+          .insert({ title, description: description || '', owner_id: userId })
+          .select()
+          .single()
+
+        if (error) {
+          toast.error('Failed to create project', { description: error.message })
+          return
+        }
+
+        setProjects((prev) => [data, ...prev])
+        setActiveProjectId(data.id)
+        toast.success('Project created', { description: title })
       })
-      if (successMessage) {
-        // Delay toast to sync with save animation
-        setTimeout(() => toast.success(successMessage), 650)
-      }
     },
-    [persistData]
+    [userId, withSaving]
   )
 
-  // ─── User Switching ───────────────────────────────────────────────────────
-
-  const switchUser = useCallback((userId: string) => {
-    setActiveUserId(userId)
-    saveActiveUser(userId)
-    const persona = PERSONAS.find((p) => p.id === userId)
-    toast.info(`Switched to ${persona?.name} (${persona?.role === 'admin' ? 'Admin' : 'Viewer'})`)
-  }, [])
-
-  // ─── Sidebar ──────────────────────────────────────────────────────────────
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => !prev)
-  }, [])
-
-  // ─── SWOT Operations ──────────────────────────────────────────────────────
-
+  // ─── SWOT CRUD (Optimistic UI) ────────────────────────────────────────────
   const addSwotItem = useCallback(
-    (item: Omit<SwotItem, 'id'>) => {
-      mutateData(
-        (prev) => ({
-          ...prev,
-          swotItems: [...prev.swotItems, { ...item, id: `swot-${Date.now()}` }],
-        }),
-        'Item added to Strategy Board'
-      )
+    async (item: Pick<SwotItemInsert, 'type' | 'content' | 'priority'>) => {
+      if (!activeProjectId) return
+
+      // Optimistic: generate a temporary ID
+      const tempId = crypto.randomUUID()
+      const optimistic: SwotItem = {
+        id: tempId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        project_id: activeProjectId,
+        type: item.type,
+        content: item.content,
+        priority: item.priority || 'Medium',
+      }
+
+      // Optimistic insert
+      setSwotItems((prev) => [...prev, optimistic])
+
+      await withSaving(async () => {
+        const { data, error } = await supabase
+          .from('swot_items')
+          .insert({ project_id: activeProjectId, ...item })
+          .select()
+          .single()
+
+        if (error) {
+          // Rollback
+          setSwotItems((prev) => prev.filter((s) => s.id !== tempId))
+          toast.error('Failed to add item', { description: error.message })
+          return
+        }
+
+        // Replace optimistic with real
+        setSwotItems((prev) => prev.map((s) => (s.id === tempId ? data : s)))
+        toast.success('Item added to Strategy Board')
+      })
     },
-    [mutateData]
+    [activeProjectId, withSaving]
   )
 
   const updateSwotItem = useCallback(
-    (id: string, updates: Partial<SwotItem>) => {
-      mutateData(
-        (prev) => ({
-          ...prev,
-          swotItems: prev.swotItems.map((item) => (item.id === id ? { ...item, ...updates } : item)),
-        }),
-        'Item updated successfully'
-      )
+    async (id: string, updates: SwotItemUpdate) => {
+      // Optimistic update
+      const previous = swotItems.find((s) => s.id === id)
+      if (!previous) return
+
+      setSwotItems((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)))
+
+      await withSaving(async () => {
+        const { error } = await supabase.from('swot_items').update(updates).eq('id', id)
+
+        if (error) {
+          // Rollback
+          setSwotItems((prev) => prev.map((s) => (s.id === id ? previous : s)))
+          toast.error('Failed to update item', { description: error.message })
+          return
+        }
+
+        toast.success('Item updated')
+      })
     },
-    [mutateData]
+    [swotItems, withSaving]
   )
 
   const deleteSwotItem = useCallback(
-    (id: string) => {
-      mutateData(
-        (prev) => ({
-          ...prev,
-          swotItems: prev.swotItems.filter((item) => item.id !== id),
-        }),
-        'Item removed'
-      )
+    async (id: string) => {
+      // Optimistic delete
+      const previous = swotItems.find((s) => s.id === id)
+      setSwotItems((prev) => prev.filter((s) => s.id !== id))
+
+      await withSaving(async () => {
+        const { error } = await supabase.from('swot_items').delete().eq('id', id)
+
+        if (error) {
+          // Rollback
+          if (previous) setSwotItems((prev) => [...prev, previous])
+          toast.error('Failed to delete item', { description: error.message })
+          return
+        }
+
+        toast.success('Item removed')
+      })
     },
-    [mutateData]
+    [swotItems, withSaving]
   )
 
-  // ─── Risk Operations ──────────────────────────────────────────────────────
-
+  // ─── Risk CRUD (Optimistic UI) ────────────────────────────────────────────
   const addRisk = useCallback(
-    (risk: Omit<RiskItem, 'id'>) => {
-      mutateData(
-        (prev) => ({
-          ...prev,
-          risks: [...prev.risks, { ...risk, id: `RSK-${String(prev.risks.length + 1).padStart(3, '0')}` }],
-        }),
-        'New risk added to register'
-      )
+    async (risk: Pick<RiskInsert, 'description' | 'probability' | 'impact' | 'owner_name' | 'status'>) => {
+      if (!activeProjectId) return
+
+      const prob = risk.probability || 3
+      const imp = risk.impact || 3
+      const tempId = crypto.randomUUID()
+      const optimistic: Risk = {
+        id: tempId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        project_id: activeProjectId,
+        description: risk.description,
+        probability: prob,
+        impact: imp,
+        severity: prob * imp,
+        owner_name: risk.owner_name || '',
+        status: risk.status || 'Active',
+      }
+
+      setRisks((prev) => [...prev, optimistic].sort((a, b) => b.severity - a.severity))
+
+      await withSaving(async () => {
+        const { data, error } = await supabase
+          .from('risks')
+          .insert({ project_id: activeProjectId, ...risk })
+          .select()
+          .single()
+
+        if (error) {
+          setRisks((prev) => prev.filter((r) => r.id !== tempId))
+          toast.error('Failed to add risk', { description: error.message })
+          return
+        }
+
+        setRisks((prev) =>
+          prev.map((r) => (r.id === tempId ? data : r)).sort((a, b) => b.severity - a.severity)
+        )
+        toast.success('Risk added to register')
+      })
     },
-    [mutateData]
+    [activeProjectId, withSaving]
   )
 
   const updateRisk = useCallback(
-    (id: string, updates: Partial<RiskItem>) => {
-      mutateData(
-        (prev) => ({
-          ...prev,
-          risks: prev.risks.map((r) => (r.id === id ? { ...r, ...updates } : r)),
-        }),
-        'Risk updated successfully'
+    async (id: string, updates: RiskUpdate) => {
+      const previous = risks.find((r) => r.id === id)
+      if (!previous) return
+
+      // Compute new severity if prob/impact changed
+      const newProb = updates.probability ?? previous.probability
+      const newImpact = updates.impact ?? previous.impact
+      const optimisticUpdates = { ...updates, severity: newProb * newImpact }
+
+      setRisks((prev) =>
+        prev
+          .map((r) => (r.id === id ? { ...r, ...optimisticUpdates } : r))
+          .sort((a, b) => b.severity - a.severity)
       )
+
+      await withSaving(async () => {
+        const { error } = await supabase.from('risks').update(updates).eq('id', id)
+
+        if (error) {
+          setRisks((prev) =>
+            prev.map((r) => (r.id === id ? previous : r)).sort((a, b) => b.severity - a.severity)
+          )
+          toast.error('Failed to update risk', { description: error.message })
+          return
+        }
+
+        toast.success('Risk updated')
+      })
     },
-    [mutateData]
+    [risks, withSaving]
   )
 
   const deleteRisk = useCallback(
-    (id: string) => {
-      mutateData(
-        (prev) => ({
-          ...prev,
-          risks: prev.risks.filter((r) => r.id !== id),
-        }),
-        'Risk removed from register'
-      )
+    async (id: string) => {
+      const previous = risks.find((r) => r.id === id)
+      setRisks((prev) => prev.filter((r) => r.id !== id))
+
+      await withSaving(async () => {
+        const { error } = await supabase.from('risks').delete().eq('id', id)
+
+        if (error) {
+          if (previous) setRisks((prev) => [...prev, previous].sort((a, b) => b.severity - a.severity))
+          toast.error('Failed to delete risk', { description: error.message })
+          return
+        }
+
+        toast.success('Risk removed')
+      })
     },
-    [mutateData]
+    [risks, withSaving]
   )
 
-  // ─── Charter Operations ───────────────────────────────────────────────────
-
+  // ─── Charter CRUD (Optimistic UI) ─────────────────────────────────────────
   const addCharter = useCallback(
-    (charter: Omit<ProjectCharter, 'id' | 'createdAt'>) => {
-      mutateData(
-        (prev) => ({
-          ...prev,
-          charters: [
-            ...prev.charters,
-            {
-              ...charter,
-              id: `CHR-${String(prev.charters.length + 1).padStart(3, '0')}`,
-              createdAt: new Date().toISOString().split('T')[0],
-            },
-          ],
-        }),
-        'Project Charter created successfully'
-      )
+    async (charter: Pick<CharterInsert, 'name' | 'sponsor' | 'start_date' | 'in_scope' | 'out_of_scope' | 'team_members'>) => {
+      if (!activeProjectId) return
+
+      const tempId = crypto.randomUUID()
+      const optimistic: Charter = {
+        id: tempId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        project_id: activeProjectId,
+        name: charter.name,
+        sponsor: charter.sponsor || '',
+        start_date: charter.start_date || null,
+        in_scope: charter.in_scope || [],
+        out_of_scope: charter.out_of_scope || [],
+        team_members: charter.team_members || [],
+      }
+
+      setCharters((prev) => [optimistic, ...prev])
+
+      await withSaving(async () => {
+        const { data, error } = await supabase
+          .from('charters')
+          .insert({ project_id: activeProjectId, ...charter })
+          .select()
+          .single()
+
+        if (error) {
+          setCharters((prev) => prev.filter((c) => c.id !== tempId))
+          toast.error('Failed to create charter', { description: error.message })
+          return
+        }
+
+        setCharters((prev) => prev.map((c) => (c.id === tempId ? data : c)))
+        toast.success('Charter created', { description: charter.name })
+      })
     },
-    [mutateData]
+    [activeProjectId, withSaving]
   )
 
-  // ─── Context Value ────────────────────────────────────────────────────────
+  const updateCharter = useCallback(
+    async (id: string, updates: CharterUpdate) => {
+      const previous = charters.find((c) => c.id === id)
+      if (!previous) return
 
+      setCharters((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)))
+
+      await withSaving(async () => {
+        const { error } = await supabase.from('charters').update(updates).eq('id', id)
+
+        if (error) {
+          setCharters((prev) => prev.map((c) => (c.id === id ? previous : c)))
+          toast.error('Failed to update charter', { description: error.message })
+          return
+        }
+
+        toast.success('Charter updated')
+      })
+    },
+    [charters, withSaving]
+  )
+
+  const deleteCharter = useCallback(
+    async (id: string) => {
+      const previous = charters.find((c) => c.id === id)
+      setCharters((prev) => prev.filter((c) => c.id !== id))
+
+      await withSaving(async () => {
+        const { error } = await supabase.from('charters').delete().eq('id', id)
+
+        if (error) {
+          if (previous) setCharters((prev) => [previous, ...prev])
+          toast.error('Failed to delete charter', { description: error.message })
+          return
+        }
+
+        toast.success('Charter removed')
+      })
+    },
+    [charters, withSaving]
+  )
+
+  // ─── Context Value ─────────────────────────────────────────────────────────
   const value: BusinessOSContextValue = {
-    activeUser,
-    switchUser,
+    session,
+    profile,
     isAdmin,
-    sidebarCollapsed,
-    toggleSidebar,
+    signOut,
+    activeProject,
+    projects,
+    setActiveProjectId,
+    createProject,
+    isLoading,
     isSaving,
-    swotItems: data.swotItems,
+    swotItems,
     addSwotItem,
     updateSwotItem,
     deleteSwotItem,
-    risks: data.risks,
+    risks,
     addRisk,
     updateRisk,
     deleteRisk,
-    charters: data.charters,
+    charters,
     addCharter,
+    updateCharter,
+    deleteCharter,
   }
 
   return <BusinessOSContext.Provider value={value}>{children}</BusinessOSContext.Provider>

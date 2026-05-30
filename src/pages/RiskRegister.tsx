@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
-import { useBusinessOS, RiskItem, RiskStatus } from '@/context/BusinessContext'
+import { useBusinessOS } from '@/context/BusinessContext'
+import type { Risk, RiskStatus } from '@/types/database'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,10 +22,14 @@ const statusVariant: Record<RiskStatus, 'danger' | 'success' | 'warning'> = {
   Watch: 'warning',
 }
 
+function getInitials(name: string): string {
+  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
 export function RiskRegister() {
   const { risks, addRisk, updateRisk, deleteRisk, isAdmin } = useBusinessOS()
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingRisk, setEditingRisk] = useState<RiskItem | null>(null)
+  const [editingRisk, setEditingRisk] = useState<Risk | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   // Form state
@@ -51,55 +56,44 @@ export function RiskRegister() {
     setModalOpen(true)
   }
 
-  const openEditModal = (risk: RiskItem) => {
+  const openEditModal = (risk: Risk) => {
     if (!isAdmin) return
     setEditingRisk(risk)
     setFormDescription(risk.description)
     setFormProbability(risk.probability)
     setFormImpact(risk.impact)
-    setFormOwner(risk.owner)
+    setFormOwner(risk.owner_name)
     setFormStatus(risk.status)
     setModalOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isAdmin) return
     if (!formDescription.trim() || !formOwner.trim()) return
 
-    const severity = formProbability * formImpact
-    const initials = formOwner
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-
     if (editingRisk) {
-      updateRisk(editingRisk.id, {
+      await updateRisk(editingRisk.id, {
         description: formDescription,
         probability: formProbability,
         impact: formImpact,
-        severity,
-        owner: formOwner,
-        ownerAvatar: initials,
+        owner_name: formOwner,
         status: formStatus,
       })
     } else {
-      addRisk({
+      await addRisk({
         description: formDescription,
         probability: formProbability,
         impact: formImpact,
-        severity,
-        owner: formOwner,
-        ownerAvatar: initials,
+        owner_name: formOwner,
         status: formStatus,
       })
     }
     setModalOpen(false)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!isAdmin) return
-    deleteRisk(id)
+    await deleteRisk(id)
   }
 
   const totalRisks = risks.length
@@ -124,7 +118,6 @@ export function RiskRegister() {
         )}
       </div>
 
-      {/* Viewer Banner */}
       {!isAdmin && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm text-amber-800 font-medium">
@@ -191,7 +184,6 @@ export function RiskRegister() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-4 py-3 text-left font-medium text-slate-500">ID</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">Risk Description</th>
                   <th className="px-4 py-3 text-center font-medium text-slate-500">Prob</th>
                   <th className="px-4 py-3 text-center font-medium text-slate-500">Impact</th>
@@ -209,7 +201,6 @@ export function RiskRegister() {
                       risk.severity > 15 ? 'bg-red-50/50' : ''
                     }`}
                   >
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{risk.id}</td>
                     <td className="max-w-xs px-4 py-3 text-slate-700">{risk.description}</td>
                     <td className="px-4 py-3 text-center">
                       <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-xs font-medium">
@@ -237,9 +228,9 @@ export function RiskRegister() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-[10px] font-medium text-white">
-                          {risk.ownerAvatar}
+                          {getInitials(risk.owner_name)}
                         </div>
-                        <span className="text-slate-700">{risk.owner}</span>
+                        <span className="text-slate-700">{risk.owner_name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -248,20 +239,10 @@ export function RiskRegister() {
                     {isAdmin && (
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(risk)}
-                            className="text-xs text-slate-500"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => openEditModal(risk)} className="text-xs text-slate-500">
                             Edit
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(risk.id)}
-                            className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(risk.id)} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -275,7 +256,7 @@ export function RiskRegister() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Modal (Admin only) */}
+      {/* Add/Edit Modal */}
       {isAdmin && (
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent>
@@ -288,29 +269,14 @@ export function RiskRegister() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="risk-desc">Risk Description</Label>
-                <Input
-                  id="risk-desc"
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Describe the risk scenario..."
-                />
+                <Input id="risk-desc" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Describe the risk scenario..." />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Probability (1-5)</Label>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => setFormProbability(n)}
-                        className={`flex h-9 w-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${
-                          formProbability === n
-                            ? 'border-slate-900 bg-slate-900 text-white'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        {n}
-                      </button>
+                      <button key={n} onClick={() => setFormProbability(n)} className={`flex h-9 w-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${formProbability === n ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{n}</button>
                     ))}
                   </div>
                 </div>
@@ -318,59 +284,29 @@ export function RiskRegister() {
                   <Label>Impact (1-5)</Label>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => setFormImpact(n)}
-                        className={`flex h-9 w-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${
-                          formImpact === n
-                            ? 'border-slate-900 bg-slate-900 text-white'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        {n}
-                      </button>
+                      <button key={n} onClick={() => setFormImpact(n)} className={`flex h-9 w-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${formImpact === n ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{n}</button>
                     ))}
                   </div>
                 </div>
               </div>
               <div className="rounded-md bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">
-                  Calculated Severity:{' '}
-                  <span className="font-bold text-slate-900">{formProbability * formImpact}</span>
-                </p>
+                <p className="text-xs text-slate-500">Calculated Severity: <span className="font-bold text-slate-900">{formProbability * formImpact}</span></p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="risk-owner">Owner</Label>
-                <Input
-                  id="risk-owner"
-                  value={formOwner}
-                  onChange={(e) => setFormOwner(e.target.value)}
-                  placeholder="Full name of risk owner..."
-                />
+                <Input id="risk-owner" value={formOwner} onChange={(e) => setFormOwner(e.target.value)} placeholder="Full name of risk owner..." />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
                 <div className="flex gap-2">
                   {(['Active', 'Watch', 'Mitigated'] as RiskStatus[]).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setFormStatus(s)}
-                      className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
-                        formStatus === s
-                          ? 'border-slate-900 bg-slate-900 text-white'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {s}
-                    </button>
+                    <button key={s} onClick={() => setFormStatus(s)} className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors ${formStatus === s ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{s}</button>
                   ))}
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setModalOpen(false)}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={!formDescription.trim() || !formOwner.trim()}>
                 {editingRisk ? 'Save Changes' : 'Add Risk'}
               </Button>
