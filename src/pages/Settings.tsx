@@ -68,20 +68,36 @@ export function Settings() {
     }
     setIsTestingKey(true)
     try {
-      const testUrl = baseUrl.replace(/\/$/, '') + '/models'
+      // Test with a real chat completion request (tiny prompt)
+      const testUrl = baseUrl.replace(/\/$/, '') + '/chat/completions'
       const response = await fetch(testUrl, {
-        headers: { 'Authorization': `Bearer ${apiKey.trim()}` },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [{ role: 'user', content: 'Hi' }],
+          max_tokens: 5,
+        }),
       })
       if (response.ok) {
         setIsKeyValid(true)
-        toast.success('Connection successful!', { description: `Connected to ${baseUrl}` })
+        toast.success('Connection successful!', { description: `Model "${selectedModel}" responded via ${baseUrl}` })
       } else {
+        const err = await response.json().catch(() => ({}))
         setIsKeyValid(false)
-        toast.error('Connection failed', { description: `HTTP ${response.status}. Check your key and endpoint.` })
+        toast.error('Connection failed', { description: err?.error?.message || `HTTP ${response.status}. Check your key, model, and endpoint URL.` })
       }
-    } catch {
+    } catch (e: unknown) {
       setIsKeyValid(false)
-      toast.error('Connection failed', { description: 'Could not reach the API endpoint. Check the URL.' })
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        toast.error('Cannot reach endpoint', { description: 'This is likely a CORS issue. The endpoint URL must allow browser requests. Try using the /v1 path (e.g., https://api.groq.com/openai/v1).' })
+      } else {
+        toast.error('Connection failed', { description: msg })
+      }
     }
     setIsTestingKey(false)
   }
