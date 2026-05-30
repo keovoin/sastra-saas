@@ -12,6 +12,14 @@ import { Settings } from '@/pages/Settings'
 import { ActivityFeed } from '@/pages/ActivityFeed'
 import { AIAssistant } from '@/pages/AIAssistant'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { OKRTracker } from '@/pages/OKRTracker'
+import { MeetingNotes } from '@/pages/MeetingNotes'
+import { CompetitorTracker } from '@/pages/CompetitorTracker'
+import { RunwayCalculator } from '@/pages/RunwayCalculator'
+import { StakeholderMap } from '@/pages/StakeholderMap'
+import { KPIBuilder } from '@/pages/KPIBuilder'
+import { DecisionLog } from '@/pages/DecisionLog'
+import { GoalCascade } from '@/pages/GoalCascade'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Toaster } from 'sonner'
 import type { Session } from '@supabase/supabase-js'
@@ -31,6 +39,14 @@ function AuthenticatedApp({ session }: { session: Session }) {
       case 'strategy': return <StrategyBoard />
       case 'risks': return <RiskRegister />
       case 'charters': return <ProjectCharters />
+      case 'okrs': return <OKRTracker />
+      case 'meetings': return <MeetingNotes />
+      case 'competitors': return <CompetitorTracker />
+      case 'runway': return <RunwayCalculator />
+      case 'stakeholders': return <StakeholderMap />
+      case 'kpis': return <KPIBuilder />
+      case 'decisions': return <DecisionLog />
+      case 'goals': return <GoalCascade />
       case 'activity': return <ActivityFeed />
       case 'ai-assistant': return <AIAssistant />
       case 'profile': return <ProfilePage />

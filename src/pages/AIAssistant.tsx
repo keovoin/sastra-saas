@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useBusinessOS } from '@/context/BusinessContext'
-import { getStoredApiKey, getStoredModel } from '@/pages/Settings'
+import { getStoredApiKey, getStoredModel, getStoredBaseUrl, getStoredProvider } from '@/pages/Settings'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -184,9 +184,10 @@ export function AIAssistant() {
 
     const apiKey = getStoredApiKey()
     const model = getStoredModel()
+    const baseUrl = getStoredBaseUrl()
 
     if (apiKey) {
-      // ─── Real AI Generation via OpenAI ─────────────────────────────────────
+      // ─── Real AI Generation via OpenAI-compatible API ──────────────────────
       try {
         const prompt = `You are a senior business strategy consultant. Perform a SWOT analysis for a company in the "${selectedIndustry}" industry.${companyContext ? ` Additional context: ${companyContext}` : ''}
 
@@ -200,7 +201,8 @@ Return EXACTLY this JSON format (no markdown, no code blocks, just raw JSON):
 
 Each item should be a specific, actionable insight (1-2 sentences). Focus on current market conditions and trends.`
 
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -295,7 +297,7 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
           <Sparkles className="h-4 w-4 text-emerald-600" />
           <p className="text-sm text-emerald-800 dark:text-emerald-200">
             <span className="font-medium">AI-powered mode active.</span>{' '}
-            Using {getStoredModel()} for real-time strategy generation.
+            Using <code className="text-xs bg-emerald-100 dark:bg-emerald-900 px-1 rounded">{getStoredModel()}</code> via {getStoredProvider()}.
           </p>
         </div>
       )}

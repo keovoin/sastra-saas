@@ -7,9 +7,11 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Key, Eye, EyeOff, CheckCircle2, Sparkles, AlertTriangle, ExternalLink } from 'lucide-react'
 
-// ─── API Key Storage Helpers ──────────────────────────────────────────────────
-const API_KEY_STORAGE = 'sastra-openai-key'
-const API_MODEL_STORAGE = 'sastra-openai-model'
+// ─── API Configuration Storage Helpers ────────────────────────────────────────
+const API_KEY_STORAGE = 'sastra-ai-key'
+const API_MODEL_STORAGE = 'sastra-ai-model'
+const API_URL_STORAGE = 'sastra-ai-url'
+const API_PROVIDER_STORAGE = 'sastra-ai-provider'
 
 export function getStoredApiKey(): string {
   try { return localStorage.getItem(API_KEY_STORAGE) || '' } catch { return '' }
@@ -19,26 +21,40 @@ export function getStoredModel(): string {
   try { return localStorage.getItem(API_MODEL_STORAGE) || 'gpt-4o-mini' } catch { return 'gpt-4o-mini' }
 }
 
+export function getStoredBaseUrl(): string {
+  try { return localStorage.getItem(API_URL_STORAGE) || 'https://api.openai.com/v1' } catch { return 'https://api.openai.com/v1' }
+}
+
+export function getStoredProvider(): string {
+  try { return localStorage.getItem(API_PROVIDER_STORAGE) || 'openai' } catch { return 'openai' }
+}
+
 export function Settings() {
   // ─── API Key State ──────────────────────────────────────────────────────────
   const [apiKey, setApiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini')
+  const [baseUrl, setBaseUrl] = useState('https://api.openai.com/v1')
+  const [provider, setProvider] = useState('openai')
   const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null)
   const [isTestingKey, setIsTestingKey] = useState(false)
 
   useEffect(() => {
     setApiKey(getStoredApiKey())
     setSelectedModel(getStoredModel())
+    setBaseUrl(getStoredBaseUrl())
+    setProvider(getStoredProvider())
     if (getStoredApiKey()) setIsKeyValid(true)
   }, [])
 
   const handleSaveApiKey = () => {
     localStorage.setItem(API_KEY_STORAGE, apiKey.trim())
     localStorage.setItem(API_MODEL_STORAGE, selectedModel)
+    localStorage.setItem(API_URL_STORAGE, baseUrl.trim())
+    localStorage.setItem(API_PROVIDER_STORAGE, provider)
     if (apiKey.trim()) {
       setIsKeyValid(true)
-      toast.success('API key saved', { description: 'The AI Assistant will now use your OpenAI key.' })
+      toast.success('AI configuration saved', { description: `Provider: ${provider} | Model: ${selectedModel}` })
     } else {
       setIsKeyValid(null)
       toast.success('API key removed', { description: 'The AI Assistant will use built-in suggestions.' })
@@ -52,19 +68,20 @@ export function Settings() {
     }
     setIsTestingKey(true)
     try {
-      const response = await fetch('https://api.openai.com/v1/models', {
+      const testUrl = baseUrl.replace(/\/$/, '') + '/models'
+      const response = await fetch(testUrl, {
         headers: { 'Authorization': `Bearer ${apiKey.trim()}` },
       })
       if (response.ok) {
         setIsKeyValid(true)
-        toast.success('API key is valid!', { description: 'Connection to OpenAI verified.' })
+        toast.success('Connection successful!', { description: `Connected to ${baseUrl}` })
       } else {
         setIsKeyValid(false)
-        toast.error('Invalid API key', { description: 'Please check your key and try again.' })
+        toast.error('Connection failed', { description: `HTTP ${response.status}. Check your key and endpoint.` })
       }
     } catch {
       setIsKeyValid(false)
-      toast.error('Connection failed', { description: 'Could not reach OpenAI. Check your network.' })
+      toast.error('Connection failed', { description: 'Could not reach the API endpoint. Check the URL.' })
     }
     setIsTestingKey(false)
   }
@@ -138,6 +155,48 @@ export function Settings() {
               </p>
             </div>
 
+            {/* Provider Selection */}
+            <div className="space-y-2">
+              <Label>Provider</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1' },
+                  { id: 'groq', label: 'Groq', url: 'https://api.groq.com/openai/v1' },
+                  { id: 'together', label: 'Together AI', url: 'https://api.together.xyz/v1' },
+                  { id: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1' },
+                  { id: 'ollama', label: 'Ollama (Local)', url: 'http://localhost:11434/v1' },
+                  { id: 'custom', label: 'Custom', url: '' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setProvider(p.id); if (p.url) setBaseUrl(p.url) }}
+                    className={`rounded-lg border p-2.5 text-left transition-all ${
+                      provider === p.id
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'border-border hover:bg-accent/50'
+                    }`}
+                  >
+                    <p className="text-xs font-medium">{p.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Base URL */}
+            <div className="space-y-2">
+              <Label htmlFor="base-url">API Base URL</Label>
+              <Input
+                id="base-url"
+                value={baseUrl}
+                onChange={(e) => { setBaseUrl(e.target.value); setProvider('custom') }}
+                placeholder="https://api.openai.com/v1"
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Must be OpenAI-compatible (supports /chat/completions endpoint).
+              </p>
+            </div>
+
             {/* Model Selection */}
             <div className="space-y-2">
               <Label>Model</Label>
@@ -146,6 +205,9 @@ export function Settings() {
                   { id: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Fast & cheap' },
                   { id: 'gpt-4o', label: 'GPT-4o', description: 'Best quality' },
                   { id: 'gpt-3.5-turbo', label: 'GPT-3.5', description: 'Legacy' },
+                  { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B', description: 'Groq/Together' },
+                  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', description: 'Groq' },
+                  { id: 'claude-3.5-sonnet', label: 'Claude 3.5', description: 'OpenRouter' },
                 ].map((model) => (
                   <button
                     key={model.id}
@@ -161,6 +223,16 @@ export function Settings() {
                   </button>
                 ))}
               </div>
+              <div className="space-y-2 pt-1">
+                <Label htmlFor="custom-model" className="text-xs">Or type a custom model ID:</Label>
+                <Input
+                  id="custom-model"
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  placeholder="e.g., meta-llama/Meta-Llama-3-8B"
+                  className="font-mono text-xs"
+                />
+              </div>
             </div>
 
             {/* Actions */}
@@ -174,7 +246,7 @@ export function Settings() {
                 Test Connection
               </Button>
               {apiKey && (
-                <Button onClick={() => { setApiKey(''); localStorage.removeItem(API_KEY_STORAGE); setIsKeyValid(null); toast.success('API key removed') }} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                <Button onClick={() => { setApiKey(''); setBaseUrl('https://api.openai.com/v1'); setProvider('openai'); localStorage.removeItem(API_KEY_STORAGE); localStorage.removeItem(API_URL_STORAGE); localStorage.removeItem(API_PROVIDER_STORAGE); setIsKeyValid(null); toast.success('AI configuration cleared') }} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
                   Remove Key
                 </Button>
               )}
@@ -183,12 +255,14 @@ export function Settings() {
             {/* Help Link */}
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium">Don't have a key?</span> Get one from{' '}
-                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary hover:underline">
-                  OpenAI Platform <ExternalLink className="h-3 w-3" />
-                </a>
-                . Usage costs depend on your chosen model ($0.15 - $5.00 per 1M tokens).
+                <span className="font-medium">Supported providers:</span> Any service with an OpenAI-compatible API: {' '}
+                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI</a>, {' '}
+                <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Groq</a>, {' '}
+                <a href="https://api.together.xyz" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Together AI</a>, {' '}
+                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenRouter</a>, {' '}
+                <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ollama</a>, or any custom endpoint.
               </p>
+              <p className="text-xs text-muted-foreground mt-1">Your key is stored <span className="font-medium">only in your browser</span>. Never sent to our servers.</p>
             </div>
           </CardContent>
         </Card>
