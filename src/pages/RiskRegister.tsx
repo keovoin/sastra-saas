@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useBusinessOS } from '@/context/BusinessContext'
-import type { Risk, RiskStatus } from '@/types/database'
+import type { Risk, RiskStatus } from '@/context/BusinessContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

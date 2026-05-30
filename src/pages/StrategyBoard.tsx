@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useBusinessOS } from '@/context/BusinessContext'
-import type { SwotItem, SwotType, Priority } from '@/types/database'
+import type { SwotItem, SwotType, Priority } from '@/context/BusinessContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
