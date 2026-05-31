@@ -53,6 +53,24 @@ export function AdminPortal() {
   const [editUser, setEditUser] = useState<AdminUser | null>(null)
   const [editWorkspace, setEditWorkspace] = useState<AdminWorkspace | null>(null)
 
+  // ─── Paddle Configuration (stored in localStorage) ─────────────────────────
+  const [paddleConfig, setPaddleConfig] = useState({
+    vendorId: localStorage.getItem('sastra-paddle-vendor-id') || '348843',
+    clientToken: localStorage.getItem('sastra-paddle-client-token') || '',
+    proPriceId: localStorage.getItem('sastra-paddle-pro-price') || '',
+    enterprisePriceId: localStorage.getItem('sastra-paddle-ent-price') || '',
+    environment: localStorage.getItem('sastra-paddle-env') || 'production',
+  })
+
+  const savePaddleConfig = () => {
+    localStorage.setItem('sastra-paddle-vendor-id', paddleConfig.vendorId)
+    localStorage.setItem('sastra-paddle-client-token', paddleConfig.clientToken)
+    localStorage.setItem('sastra-paddle-pro-price', paddleConfig.proPriceId)
+    localStorage.setItem('sastra-paddle-ent-price', paddleConfig.enterprisePriceId)
+    localStorage.setItem('sastra-paddle-env', paddleConfig.environment)
+    toast.success('Paddle configuration saved')
+  }
+
   const loadData = async () => {
     setLoading(true)
     const [s, u, w, b, t] = await Promise.all([
@@ -304,10 +322,68 @@ export function AdminPortal() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* ─── Paddle Configuration ──────────────────────────────────────── */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-4 w-4" />Paddle Payment Setup</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">Configure your Paddle credentials here. Get these from your Paddle Dashboard → Developer Tools and Catalog.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Vendor / Seller ID</label>
+                      <Input value={paddleConfig.vendorId} onChange={e => setPaddleConfig(p => ({ ...p, vendorId: e.target.value }))} placeholder="348843" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Environment</label>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={paddleConfig.environment} onChange={e => setPaddleConfig(p => ({ ...p, environment: e.target.value }))}>
+                        <option value="production">Production (live)</option>
+                        <option value="sandbox">Sandbox (testing)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground">Client-Side Token</label>
+                      <Input value={paddleConfig.clientToken} onChange={e => setPaddleConfig(p => ({ ...p, clientToken: e.target.value }))} placeholder="live_xxxxxxxxxxxxx" className="font-mono text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Pro Plan Price ID</label>
+                      <Input value={paddleConfig.proPriceId} onChange={e => setPaddleConfig(p => ({ ...p, proPriceId: e.target.value }))} placeholder="pri_01j..." className="font-mono text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Enterprise Price ID (optional)</label>
+                      <Input value={paddleConfig.enterprisePriceId} onChange={e => setPaddleConfig(p => ({ ...p, enterprisePriceId: e.target.value }))} placeholder="pri_01j..." className="font-mono text-xs" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Webhook URL (paste into Paddle → Notifications)</label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/paddle-webhook`} className="font-mono text-xs bg-muted/50" />
+                      <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/api/paddle-webhook`); toast.success('Webhook URL copied') }}>Copy</Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={savePaddleConfig}>Save Paddle Config</Button>
+                    <Badge variant="secondary" className={paddleConfig.proPriceId ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
+                      {paddleConfig.proPriceId ? 'Ready' : 'Price ID needed'}
+                    </Badge>
+                  </div>
+
+                  <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+                    <p className="font-medium text-foreground">Setup checklist:</p>
+                    <p>1. Paddle Dashboard → Catalog → create "Pro Plan" product + $29/mo price → paste Price ID above</p>
+                    <p>2. Paddle Dashboard → Developer Tools → Notifications → add the Webhook URL above</p>
+                    <p>3. Add PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET to Vercel environment variables</p>
+                    <p>4. Save config here, then test checkout on the Billing page</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
-
-          {/* ─── ANALYTICS TAB ─────────────────────────────────────────────────── */}
           {tab === 'analytics' && stats && (
             <div className="space-y-4 animate-fade-in-up">
               <Card><CardHeader><CardTitle className="text-base">User Growth</CardTitle></CardHeader><CardContent>
