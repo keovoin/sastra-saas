@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
+import { useBusinessOS } from '@/context/BusinessContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Key, Eye, EyeOff, CheckCircle2, Sparkles, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Key, Eye, EyeOff, CheckCircle2, Sparkles, AlertTriangle, ExternalLink, ShieldAlert } from 'lucide-react'
 import { getAIUsage } from '@/lib/ai'
 import { getWorkspaceName, getWorkspaceLogo, setWorkspaceBranding } from '@/lib/workspace'
 
@@ -32,6 +33,7 @@ export function getStoredProvider(): string {
 }
 
 export function Settings() {
+  const { isAdmin } = useBusinessOS()
   // ─── API Key State ──────────────────────────────────────────────────────────
   const [apiKey, setApiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
@@ -158,7 +160,21 @@ export function Settings() {
       </div>
 
       <div className="grid gap-6 max-w-2xl">
+        {/* Non-admin notice */}
+        {!isAdmin && (
+          <Card className="border-amber-200 dark:border-amber-800">
+            <CardContent className="p-4 flex items-center gap-3">
+              <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0" />
+              <div>
+                <p className="text-sm font-medium">Viewer Access</p>
+                <p className="text-xs text-muted-foreground">AI configuration and workspace settings are managed by your admin.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ─── Workspace Branding ──────────────────────────────────────────────── */}
+        {isAdmin && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Workspace Branding</CardTitle>
@@ -400,6 +416,7 @@ export function Settings() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* ─── Workspace ───────────────────────────────────────────────────────── */}
         <Card>
