@@ -11,19 +11,51 @@ export function isAIConfigured(): boolean {
   return !!getStoredApiKey()
 }
 
-// Check if proxy mode is enabled (needed for Groq, Together AI, etc)
-// OpenRouter supports direct browser CORS, so proxy is optional for it
+// ─── AI Text Cleanup ─────────────────────────────────────────────────────────
+// Strips markdown formatting from AI responses for clean UI display
+export function cleanAIText(text: string): string {
+  return text
+    .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*+]\s+/gm, '• ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+// ─── AI Usage Tracking ───────────────────────────────────────────────────────
+const AI_USAGE_KEY = 'sastra-ai-usage'
+
+export function getAIUsage(): { total: number; today: number; lastReset: string } {
+  try {
+    const data = JSON.parse(localStorage.getItem(AI_USAGE_KEY) || '{}')
+    const today = new Date().toISOString().split('T')[0]
+    if (data.lastReset !== today) return { total: data.total || 0, today: 0, lastReset: today }
+    return data
+  } catch { return { total: 0, today: 0, lastReset: new Date().toISOString().split('T')[0] } }
+}
+
+function trackAIUsage() {
+  const usage = getAIUsage()
+  const today = new Date().toISOString().split('T')[0]
+  const updated = { total: usage.total + 1, today: (usage.lastReset === today ? usage.today : 0) + 1, lastReset: today }
+  localStorage.setItem(AI_USAGE_KEY, JSON.stringify(updated))
+}
+
+// ─── Proxy Detection ─────────────────────────────────────────────────────────
 function useProxy(): boolean {
   try {
     const setting = localStorage.getItem('sastra-ai-proxy')
     if (setting !== null) return setting === 'true'
-    // Default: use proxy unless using OpenRouter (which supports CORS natively)
     const baseUrl = localStorage.getItem('sastra-ai-url') || ''
-    if (baseUrl.includes('openrouter')) return false
+    if (baseUrl.includes('openrouter') || baseUrl.includes('generativelanguage.googleapis')) return false
     return true
   } catch { return true }
 }
 
+// ─── Main AI Call ────────────────────────────────────────────────────────────
 export async function askAI(prompt: string): Promise<AIResponse> {
   const apiKey = getStoredApiKey()
   const model = getStoredModel()
@@ -33,12 +65,10 @@ export async function askAI(prompt: string): Promise<AIResponse> {
     return { success: false, content: '', error: 'No API key configured. Go to Settings to add one.' }
   }
 
-  // Rate limiting: max 20 AI calls per minute
   if (!checkAIRateLimit()) {
     return { success: false, content: '', error: 'Rate limit exceeded. Please wait a moment before trying again.' }
   }
 
-  // Sanitize prompt to prevent injection
   const cleanPrompt = sanitizeInput(prompt)
 
   const requestBody = JSON.stringify({
@@ -50,12 +80,11 @@ export async function askAI(prompt: string): Promise<AIResponse> {
 
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
+    const timeout = setTimeout(() => controller.abort(), 30000)
 
     let response: Response
 
     if (useProxy()) {
-      // Route through Vercel Edge Function proxy to avoid CORS
       response = await fetch('/api/ai-proxy', {
         method: 'POST',
         headers: {
@@ -67,13 +96,11 @@ export async function askAI(prompt: string): Promise<AIResponse> {
         signal: controller.signal,
       })
     } else {
-      // Direct request (works with OpenRouter which supports CORS)
       const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       }
-      // OpenRouter requires HTTP-Referer for attribution
       if (baseUrl.includes('openrouter')) {
         headers['HTTP-Referer'] = window.location.origin
         headers['X-Title'] = 'Sastra Business OS'
@@ -90,7 +117,6 @@ export async function askAI(prompt: string): Promise<AIResponse> {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      // OpenRouter returns detailed errors in error.metadata.raw or error.message
       const errMsg = err?.error?.message
         || err?.error?.metadata?.raw
         || (typeof err?.error === 'string' ? err.error : null)
@@ -100,7 +126,8 @@ export async function askAI(prompt: string): Promise<AIResponse> {
 
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content || ''
-    return { success: true, content }
+    trackAIUsage()
+    return { success: true, content: cleanAIText(content) }
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') {
       return { success: false, content: '', error: 'Request timed out after 30 seconds.' }
@@ -111,8 +138,8 @@ export async function askAI(prompt: string): Promise<AIResponse> {
         success: false,
         content: '',
         error: useProxy()
-          ? 'Proxy request failed. Make sure you are deployed on Vercel (the proxy only works in production). For local dev, use OpenRouter which supports browser CORS.'
-          : 'CORS error — your AI provider blocks browser requests. Enable "Use Proxy" in Settings (requires Vercel deployment) or switch to OpenRouter.',
+          ? 'Proxy request failed. Make sure you are deployed on Vercel. For local dev, use Google AI Studio or OpenRouter (they support browser CORS).'
+          : 'CORS error. Enable "Use Proxy" in Settings (requires Vercel deployment) or switch to Google AI Studio / OpenRouter.',
       }
     }
     return { success: false, content: '', error: message }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useBusinessOS } from '@/context/BusinessContext'
 import { getStoredApiKey, getStoredModel, getStoredBaseUrl, getStoredProvider } from '@/pages/Settings'
+import { askAIJson } from '@/lib/ai'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -167,14 +168,16 @@ const categoryConfig: Record<SwotCategory, { label: string; icon: React.ElementT
 export function AIAssistant() {
   const { addSwotItem, isAdmin } = useBusinessOS()
   const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+  const [customIndustry, setCustomIndustry] = useState('')
   const [companyContext, setCompanyContext] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [suggestions, setSuggestions] = useState<typeof industrySuggestions[string] | null>(null)
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
 
   const handleGenerate = async () => {
-    if (!selectedIndustry) {
-      toast.error('Please select an industry')
+    const effectiveIndustry = customIndustry.trim() || selectedIndustry
+    if (!effectiveIndustry) {
+      toast.error('Please select or enter an industry')
       return
     }
 
@@ -183,13 +186,11 @@ export function AIAssistant() {
     setAddedItems(new Set())
 
     const apiKey = getStoredApiKey()
-    const model = getStoredModel()
-    const baseUrl = getStoredBaseUrl()
 
     if (apiKey) {
       // ─── Real AI Generation via OpenAI-compatible API ──────────────────────
       try {
-        const prompt = `You are a senior business strategy consultant. Perform a SWOT analysis for a company in the "${selectedIndustry}" industry.${companyContext ? ` Additional context: ${companyContext}` : ''}
+        const prompt = `You are a senior business strategy consultant. Perform a SWOT analysis for a company in the "${effectiveIndustry}" industry.${companyContext ? ` Additional context: ${companyContext}` : ''}
 
 Return EXACTLY this JSON format (no markdown, no code blocks, just raw JSON):
 {
@@ -201,52 +202,27 @@ Return EXACTLY this JSON format (no markdown, no code blocks, just raw JSON):
 
 Each item should be a specific, actionable insight (1-2 sentences). Focus on current market conditions and trends.`
 
-        const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.8,
-            max_tokens: 1000,
-          }),
-        })
+        const result = await askAIJson<{ strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }>(prompt)
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}))
-          throw new Error(err?.error?.message || `API error: ${response.status}`)
-        }
-
-        const data = await response.json()
-        const content = data.choices?.[0]?.message?.content || ''
-
-        // Parse JSON from response (handle potential markdown code blocks)
-        const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-        const parsed = JSON.parse(jsonStr)
-
-        if (parsed.strengths && parsed.weaknesses && parsed.opportunities && parsed.threats) {
-          setSuggestions(parsed)
-          toast.success('AI analysis complete!', { description: `Generated using ${model}` })
+        if (result.success && result.data?.strengths && result.data?.weaknesses && result.data?.opportunities && result.data?.threats) {
+          setSuggestions(result.data)
+          toast.success('AI analysis complete!', { description: `Generated using ${getStoredModel()}` })
         } else {
-          throw new Error('Invalid response format')
+          throw new Error(result.error || 'Invalid response format')
         }
       } catch (error: any) {
-        console.error('OpenAI error:', error)
+        console.error('AI error:', error)
         toast.error('AI generation failed', { description: error.message || 'Falling back to built-in suggestions.' })
         // Fallback to built-in suggestions
-        const result = industrySuggestions[selectedIndustry]
+        const result = industrySuggestions[effectiveIndustry]
         setSuggestions(result)
       }
     } else {
       // ─── Built-in Suggestions (no API key) ─────────────────────────────────
       await new Promise((resolve) => setTimeout(resolve, 1500))
-      const result = industrySuggestions[selectedIndustry]
+      const result = industrySuggestions[effectiveIndustry]
       setSuggestions(result)
-      toast.success('Strategy suggestions generated!', { description: `Based on ${selectedIndustry} industry analysis. Add your OpenAI key in Settings for AI-powered suggestions.` })
+      toast.success('Strategy suggestions generated!', { description: `Based on ${effectiveIndustry} industry analysis. Add your OpenAI key in Settings for AI-powered suggestions.` })
     }
 
     setIsGenerating(false)
@@ -333,6 +309,11 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
           </div>
 
           <div className="space-y-2">
+            <Label>Or enter a custom industry:</Label>
+            <Input placeholder="e.g., AgriTech, Legal Tech, Aerospace, Gaming..." value={customIndustry} onChange={e => { setCustomIndustry(e.target.value); if (e.target.value) setSelectedIndustry('') }} />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="context">Company Context (Optional)</Label>
             <Input
               id="context"
@@ -343,7 +324,7 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
             <p className="text-xs text-muted-foreground">Add context for more tailored suggestions.</p>
           </div>
 
-          <Button onClick={handleGenerate} disabled={!selectedIndustry || isGenerating} className="gap-2">
+          <Button onClick={handleGenerate} disabled={(!selectedIndustry && !customIndustry) || isGenerating} className="gap-2">
             {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {isGenerating ? 'Analyzing...' : 'Generate Suggestions'}
           </Button>
@@ -358,7 +339,7 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
               <div className="h-16 w-16 rounded-full border-4 border-muted animate-spin border-t-primary" />
               <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-amber-500" />
             </div>
-            <p className="mt-4 text-sm font-medium">Analyzing {selectedIndustry} landscape...</p>
+            <p className="mt-4 text-sm font-medium">Analyzing {customIndustry || selectedIndustry} landscape...</p>
             <p className="text-xs text-muted-foreground mt-1">Generating strategic recommendations</p>
           </CardContent>
         </Card>
