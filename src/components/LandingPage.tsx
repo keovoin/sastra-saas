@@ -364,9 +364,11 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
           <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground">&copy; 2025 Sastra Technologies. All rights reserved.</p>
-            <div className="flex gap-4 text-xs text-muted-foreground">
-              <span>Privacy Policy</span><span>Terms of Service</span><span>Cookie Policy</span>
+            <p className="text-xs text-muted-foreground">&copy; 2026 Sastra Technologies. All rights reserved.</p>
+            <div className="flex gap-4 text-xs">
+              <a href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</a>
+              <a href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">Terms of Service</a>
+              <a href="/refund" className="text-muted-foreground hover:text-foreground transition-colors">Refund Policy</a>
             </div>
           </div>
         </div>
