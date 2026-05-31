@@ -174,7 +174,7 @@ export function Settings() {
         )}
 
         {/* ─── Workspace Branding ──────────────────────────────────────────────── */}
-        {isAdmin && (
+        {isAdmin && (<>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Workspace Branding</CardTitle>
@@ -417,7 +417,7 @@ export function Settings() {
             </div>
           </CardContent>
         </Card>
-        )}
+        </>)}
 
         {/* ─── Workspace ───────────────────────────────────────────────────────── */}
         <Card>
