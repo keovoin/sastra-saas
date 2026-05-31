@@ -11,6 +11,19 @@ export function isAIConfigured(): boolean {
   return !!getStoredApiKey()
 }
 
+// Check if proxy mode is enabled (needed for Groq, Together AI, etc)
+// OpenRouter supports direct browser CORS, so proxy is optional for it
+function useProxy(): boolean {
+  try {
+    const setting = localStorage.getItem('sastra-ai-proxy')
+    if (setting !== null) return setting === 'true'
+    // Default: use proxy unless using OpenRouter (which supports CORS natively)
+    const baseUrl = localStorage.getItem('sastra-ai-url') || ''
+    if (baseUrl.includes('openrouter')) return false
+    return true
+  } catch { return true }
+}
+
 export async function askAI(prompt: string): Promise<AIResponse> {
   const apiKey = getStoredApiKey()
   const model = getStoredModel()
@@ -28,31 +41,61 @@ export async function askAI(prompt: string): Promise<AIResponse> {
   // Sanitize prompt to prevent injection
   const cleanPrompt = sanitizeInput(prompt)
 
+  const requestBody = JSON.stringify({
+    model,
+    messages: [{ role: 'user', content: cleanPrompt }],
+    temperature: 0.7,
+    max_tokens: 1500,
+  })
+
   try {
-    const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
+    let response: Response
+
+    if (useProxy()) {
+      // Route through Vercel Edge Function proxy to avoid CORS
+      response = await fetch('/api/ai-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-AI-Base-URL': baseUrl,
+          'X-AI-Key': apiKey,
+        },
+        body: requestBody,
+        signal: controller.signal,
+      })
+    } else {
+      // Direct request (works with OpenRouter which supports CORS)
+      const endpoint = baseUrl.replace(/\/$/, '') + '/chat/completions'
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: cleanPrompt }],
-        temperature: 0.7,
-        max_tokens: 1500,
-      }),
-      signal: controller.signal,
-    })
+      }
+      // OpenRouter requires HTTP-Referer for attribution
+      if (baseUrl.includes('openrouter')) {
+        headers['HTTP-Referer'] = window.location.origin
+        headers['X-Title'] = 'Sastra Business OS'
+      }
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: requestBody,
+        signal: controller.signal,
+      })
+    }
 
     clearTimeout(timeout)
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      return { success: false, content: '', error: err?.error?.message || `API error: ${response.status}` }
+      // OpenRouter returns detailed errors in error.metadata.raw or error.message
+      const errMsg = err?.error?.message
+        || err?.error?.metadata?.raw
+        || (typeof err?.error === 'string' ? err.error : null)
+        || `API error ${response.status}: ${response.statusText}`
+      return { success: false, content: '', error: errMsg }
     }
 
     const data = await response.json()
@@ -63,6 +106,15 @@ export async function askAI(prompt: string): Promise<AIResponse> {
       return { success: false, content: '', error: 'Request timed out after 30 seconds.' }
     }
     const message = error instanceof Error ? error.message : 'Connection failed'
+    if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
+      return {
+        success: false,
+        content: '',
+        error: useProxy()
+          ? 'Proxy request failed. Make sure you are deployed on Vercel (the proxy only works in production). For local dev, use OpenRouter which supports browser CORS.'
+          : 'CORS error — your AI provider blocks browser requests. Enable "Use Proxy" in Settings (requires Vercel deployment) or switch to OpenRouter.',
+      }
+    }
     return { success: false, content: '', error: message }
   }
 }

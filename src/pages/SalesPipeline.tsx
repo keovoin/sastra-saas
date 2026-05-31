@@ -31,7 +31,18 @@ const STAGES: { id: Stage; label: string; color: string }[] = [
   { id: 'closed-lost', label: 'Closed Lost', color: 'bg-red-500/10 text-red-600 border-red-200' },
 ]
 
-const initialDeals: Deal[] = []
+const initialDeals: Deal[] = [
+  { id: '1', company: 'Acme Corp', value: 48000, contact: 'Sarah Chen', probability: 20, nextAction: 'Schedule discovery call', date: '2025-03-15', stage: 'lead' },
+  { id: '2', company: 'TechFlow Inc', value: 125000, contact: 'Marcus Rivera', probability: 40, nextAction: 'Send case study', date: '2025-03-12', stage: 'qualified' },
+  { id: '3', company: 'DataVault Systems', value: 85000, contact: 'Emily Watson', probability: 60, nextAction: 'Finalize proposal deck', date: '2025-03-10', stage: 'proposal' },
+  { id: '4', company: 'CloudNine Solutions', value: 200000, contact: 'James Park', probability: 75, nextAction: 'Negotiate payment terms', date: '2025-03-08', stage: 'negotiation' },
+  { id: '5', company: 'Quantum Analytics', value: 67000, contact: 'Lisa Thompson', probability: 90, nextAction: 'Process signed contract', date: '2025-02-28', stage: 'closed-won' },
+  { id: '6', company: 'NovaTech Labs', value: 35000, contact: 'Alex Kim', probability: 25, nextAction: 'Follow up next quarter', date: '2025-03-01', stage: 'lead' },
+  { id: '7', company: 'Meridian Health', value: 150000, contact: 'David Okafor', probability: 0, nextAction: 'Lost to competitor', date: '2025-02-20', stage: 'closed-lost' },
+  { id: '8', company: 'Synapse Digital', value: 92000, contact: 'Rachel Green', probability: 55, nextAction: 'Demo follow-up meeting', date: '2025-03-14', stage: 'proposal' },
+  { id: '9', company: 'Zenith AI', value: 175000, contact: 'Tom Harris', probability: 35, nextAction: 'Schedule technical deep-dive', date: '2025-04-02', stage: 'qualified' },
+  { id: '10', company: 'BlueShift Media', value: 42000, contact: 'Priya Patel', probability: 65, nextAction: 'Send SOW for review', date: '2025-04-05', stage: 'proposal' },
+]
 
 export function SalesPipeline() {
   const [deals, setDeals] = useState<Deal[]>(initialDeals)

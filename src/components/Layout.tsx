@@ -10,7 +10,7 @@ import {
   Activity, Sparkles, FileCheck, Swords, Calculator, Users2,
   BarChart3, Scale, GitBranch, Pipette, Heart, DollarSign, Presentation, Building2,
   KanbanSquare, ClipboardCheck, UserMinus, ArrowRightLeft, Calendar,
-  MessageCircle, CreditCard, UserCircle,
+  MessageCircle, CreditCard, UserCircle, Grid3X3,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -52,6 +52,7 @@ const navGroups: NavGroup[] = [
   { label: 'HR & People', items: [
     { id: 'pulse', label: 'Team Pulse', icon: Heart },
     { id: 'org', label: 'Organization', icon: Building2 },
+    { id: 'raci', label: 'RACI Matrix', icon: Grid3X3 },
     { id: 'onboarding', label: 'Onboarding', icon: ClipboardCheck },
     { id: 'offboarding', label: 'Offboarding', icon: UserMinus },
     { id: 'employee-movement', label: 'Movements', icon: ArrowRightLeft },
@@ -93,6 +94,7 @@ const breadcrumbMap: Record<string, string> = {
   org: 'Organization',
   onboarding: 'Onboarding',
   offboarding: 'Offboarding',
+  raci: 'RACI Matrix',
   'employee-movement': 'Employee Movements',
   workload: 'Staff Workload',
   'ai-assistant': 'AI Assistant',

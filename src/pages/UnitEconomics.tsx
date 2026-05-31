@@ -18,11 +18,11 @@ interface Metrics {
 
 export function UnitEconomics() {
   const [metrics, setMetrics] = useState<Metrics>({
-    arpu: 0,
-    cac: 0,
-    churnRate: 0,
-    grossMargin: 0,
-    expansionRevenue: 0,
+    arpu: 89,
+    cac: 320,
+    churnRate: 4.5,
+    grossMargin: 72,
+    expansionRevenue: 12,
   })
   const [aiInsight, setAiInsight] = useState('')
   const [aiLoading, setAiLoading] = useState(false)

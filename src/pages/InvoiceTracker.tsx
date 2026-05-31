@@ -23,7 +23,18 @@ interface Invoice {
 }
 
 
-const initialInvoices: Invoice[] = []
+const initialInvoices: Invoice[] = [
+  { id: '1', invoiceNumber: 'INV-001', client: 'Acme Corp', amount: 12500, status: 'paid', dueDate: '2025-02-28', issuedDate: '2025-02-01', remark: 'Q1 retainer', referenceId: 'PO-4521' },
+  { id: '2', invoiceNumber: 'INV-002', client: 'TechFlow Inc', amount: 8750, status: 'paid', dueDate: '2025-03-05', issuedDate: '2025-02-05', remark: 'Consulting phase 1', referenceId: 'PO-4533' },
+  { id: '3', invoiceNumber: 'INV-003', client: 'DataVault Systems', amount: 24000, status: 'pending', dueDate: '2025-04-20', issuedDate: '2025-03-20', remark: 'Platform license (annual)', referenceId: 'PO-4601' },
+  { id: '4', invoiceNumber: 'INV-004', client: 'CloudNine Solutions', amount: 15800, status: 'pending', dueDate: '2025-04-25', issuedDate: '2025-03-25', remark: '', referenceId: 'PO-4612' },
+  { id: '5', invoiceNumber: 'INV-005', client: 'Quantum Analytics', amount: 6200, status: 'overdue', dueDate: '2025-02-15', issuedDate: '2025-01-15', remark: 'Follow up sent', referenceId: '' },
+  { id: '6', invoiceNumber: 'INV-006', client: 'NovaTech Labs', amount: 31000, status: 'paid', dueDate: '2025-03-01', issuedDate: '2025-02-01', remark: 'Enterprise plan', referenceId: 'PO-4480' },
+  { id: '7', invoiceNumber: 'INV-007', client: 'Meridian Health', amount: 18500, status: 'overdue', dueDate: '2025-02-20', issuedDate: '2025-01-20', remark: 'Dispute in progress', referenceId: 'PO-4445' },
+  { id: '8', invoiceNumber: 'INV-008', client: 'Synapse Digital', amount: 9400, status: 'pending', dueDate: '2025-04-30', issuedDate: '2025-03-30', remark: 'Monthly subscription', referenceId: 'PO-4650' },
+  { id: '9', invoiceNumber: 'INV-009', client: 'Apex Ventures', amount: 42000, status: 'paid', dueDate: '2025-03-10', issuedDate: '2025-02-10', remark: 'Integration project', referenceId: 'PO-4501' },
+  { id: '10', invoiceNumber: 'INV-010', client: 'Horizon Labs', amount: 7800, status: 'pending', dueDate: '2025-05-01', issuedDate: '2025-04-01', remark: '', referenceId: 'PO-4670' },
+]
 
 
 export function InvoiceTracker() {

@@ -11,7 +11,14 @@ import { toast } from 'sonner'
 
 interface KPIMetric { id: string; name: string; unit: string; target: number; values: Array<{ week: string; value: number }> }
 
-const defaultKPIs: KPIMetric[] = []
+const defaultKPIs: KPIMetric[] = [
+  { id: '1', name: 'Weekly Active Users', unit: 'users', target: 500, values: [{ week: 'W1', value: 320 }, { week: 'W2', value: 345 }, { week: 'W3', value: 380 }, { week: 'W4', value: 410 }, { week: 'W5', value: 435 }, { week: 'W6', value: 460 }, { week: 'W7', value: 478 }, { week: 'W8', value: 495 }] },
+  { id: '2', name: 'Customer NPS', unit: 'score', target: 70, values: [{ week: 'W1', value: 52 }, { week: 'W2', value: 55 }, { week: 'W3', value: 53 }, { week: 'W4', value: 58 }, { week: 'W5', value: 62 }, { week: 'W6', value: 60 }, { week: 'W7', value: 65 }, { week: 'W8', value: 63 }] },
+  { id: '3', name: 'Monthly Churn Rate', unit: '%', target: 3, values: [{ week: 'W1', value: 5.2 }, { week: 'W2', value: 4.8 }, { week: 'W3', value: 4.5 }, { week: 'W4', value: 4.2 }, { week: 'W5', value: 4.0 }, { week: 'W6', value: 3.8 }, { week: 'W7', value: 3.6 }, { week: 'W8', value: 3.4 }] },
+  { id: '4', name: 'Support Resolution Time', unit: 'hours', target: 4, values: [{ week: 'W1', value: 8.5 }, { week: 'W2', value: 7.2 }, { week: 'W3', value: 6.8 }, { week: 'W4', value: 6.1 }, { week: 'W5', value: 5.5 }, { week: 'W6', value: 5.0 }, { week: 'W7', value: 4.8 }, { week: 'W8', value: 4.5 }] },
+  { id: '5', name: 'Monthly Revenue Growth', unit: '%', target: 15, values: [{ week: 'W1', value: 8 }, { week: 'W2', value: 9.5 }, { week: 'W3', value: 11 }, { week: 'W4', value: 10.2 }, { week: 'W5', value: 12 }, { week: 'W6', value: 13.5 }, { week: 'W7', value: 14 }, { week: 'W8', value: 14.8 }] },
+  { id: '6', name: 'Feature Adoption Rate', unit: '%', target: 60, values: [{ week: 'W1', value: 32 }, { week: 'W2', value: 35 }, { week: 'W3', value: 38 }, { week: 'W4', value: 42 }, { week: 'W5', value: 45 }, { week: 'W6', value: 48 }, { week: 'W7', value: 51 }, { week: 'W8', value: 54 }] },
+]
 
 export function KPIBuilder() {
   const [kpis, setKPIs] = useState<KPIMetric[]>(defaultKPIs)

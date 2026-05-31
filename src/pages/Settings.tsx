@@ -38,6 +38,15 @@ export function Settings() {
   const [provider, setProvider] = useState('openai')
   const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null)
   const [isTestingKey, setIsTestingKey] = useState(false)
+  const [proxyEnabled, setProxyEnabled] = useState(() => {
+    try {
+      const setting = localStorage.getItem('sastra-ai-proxy')
+      if (setting !== null) return setting === 'true'
+      // Default OFF for OpenRouter (supports CORS), ON for everything else
+      const url = localStorage.getItem('sastra-ai-url') || ''
+      return !url.includes('openrouter')
+    } catch { return true }
+  })
 
   useEffect(() => {
     setApiKey(getStoredApiKey())
@@ -68,33 +77,56 @@ export function Settings() {
     }
     setIsTestingKey(true)
     try {
-      // Test with a real chat completion request (tiny prompt)
-      const testUrl = baseUrl.replace(/\/$/, '') + '/chat/completions'
-      const response = await fetch(testUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [{ role: 'user', content: 'Hi' }],
-          max_tokens: 5,
-        }),
-      })
+      let response: Response
+
+      if (proxyEnabled) {
+        response = await fetch('/api/ai-proxy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-AI-Base-URL': baseUrl.trim(),
+            'X-AI-Key': apiKey.trim(),
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 5,
+          }),
+        })
+      } else {
+        const testUrl = baseUrl.replace(/\/$/, '') + '/chat/completions'
+        response = await fetch(testUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`,
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 5,
+          }),
+        })
+      }
+
       if (response.ok) {
         setIsKeyValid(true)
-        toast.success('Connection successful!', { description: `Model "${selectedModel}" responded via ${baseUrl}` })
+        toast.success('Connection successful!', { description: `Model "${selectedModel}" responded${proxyEnabled ? ' via proxy' : ''}.` })
       } else {
         const err = await response.json().catch(() => ({}))
         setIsKeyValid(false)
-        toast.error('Connection failed', { description: err?.error?.message || `HTTP ${response.status}. Check your key, model, and endpoint URL.` })
+        const errMsg = err?.error?.message || err?.error?.metadata?.raw || (typeof err?.error === 'string' ? err.error : null) || `HTTP ${response.status}`
+        toast.error('Connection failed', { description: errMsg })
       }
     } catch (e: unknown) {
       setIsKeyValid(false)
       const msg = e instanceof Error ? e.message : 'Unknown error'
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        toast.error('Cannot reach endpoint', { description: 'This is likely a CORS issue. The endpoint URL must allow browser requests. Try using the /v1 path (e.g., https://api.groq.com/openai/v1).' })
+        if (proxyEnabled) {
+          toast.error('Proxy not reachable', { description: 'The AI proxy is only available after deploying to Vercel. For local dev, disable proxy and use OpenRouter (it supports browser CORS).' })
+        } else {
+          toast.error('CORS blocked by provider', { description: 'Groq/Together AI block browser requests. Enable "Use Server Proxy" toggle above and deploy to Vercel.' })
+        }
       } else {
         toast.error('Connection failed', { description: msg })
       }
@@ -125,7 +157,7 @@ export function Settings() {
               </div>
               <div>
                 <CardTitle className="text-base">AI Strategy Assistant</CardTitle>
-                <CardDescription>Bring your own OpenAI key for AI-powered SWOT generation.</CardDescription>
+                <CardDescription>Connect any OpenAI-compatible provider (Groq, Together, OpenRouter, etc). Your key stays in your browser.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -148,7 +180,7 @@ export function Settings() {
 
             {/* API Key Input */}
             <div className="space-y-2">
-              <Label htmlFor="api-key">OpenAI API Key</Label>
+              <Label htmlFor="api-key">API Key</Label>
               <div className="relative">
                 <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -185,7 +217,18 @@ export function Settings() {
                 ].map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => { setProvider(p.id); if (p.url) setBaseUrl(p.url) }}
+                    onClick={() => {
+                      setProvider(p.id)
+                      if (p.url) setBaseUrl(p.url)
+                      // OpenRouter supports CORS natively — no proxy needed
+                      if (p.id === 'openrouter' || p.id === 'ollama') {
+                        setProxyEnabled(false)
+                        localStorage.setItem('sastra-ai-proxy', 'false')
+                      } else if (p.id !== 'custom') {
+                        setProxyEnabled(true)
+                        localStorage.setItem('sastra-ai-proxy', 'true')
+                      }
+                    }}
                     className={`rounded-lg border p-2.5 text-left transition-all ${
                       provider === p.id
                         ? 'border-primary bg-primary/5 ring-1 ring-primary'
@@ -210,7 +253,34 @@ export function Settings() {
               />
               <p className="text-xs text-muted-foreground">
                 Must be OpenAI-compatible (supports /chat/completions endpoint).
+                {provider === 'groq' && <span className="block mt-1 text-amber-600">Note: "/openai/" in Groq's URL is just their compatibility path — it still uses YOUR Groq key and Groq models, not OpenAI.</span>}
               </p>
+            </div>
+
+            {/* Proxy Toggle */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Use Server Proxy</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Required for Groq, Together AI, and most providers (they block browser CORS requests)</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const current = localStorage.getItem('sastra-ai-proxy') !== 'false'
+                    localStorage.setItem('sastra-ai-proxy', current ? 'false' : 'true')
+                    setProxyEnabled(!current)
+                    toast.success(current ? 'Direct mode (only works with OpenRouter/Ollama)' : 'Proxy enabled (works with all providers on Vercel)')
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${proxyEnabled ? 'bg-violet-600' : 'bg-muted'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${proxyEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              {!proxyEnabled && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">⚠️ Direct mode only works with providers that allow CORS (OpenRouter, Ollama local). Groq and Together AI will fail without proxy.</p>
+                </div>
+              )}
             </div>
 
             {/* Model Selection */}
@@ -223,6 +293,7 @@ export function Settings() {
                   { id: 'gpt-3.5-turbo', label: 'GPT-3.5', description: 'Legacy' },
                   { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B', description: 'Groq/Together' },
                   { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', description: 'Groq' },
+                  { id: 'deepseek/deepseek-v4-flash:free', label: 'DeepSeek V4 Flash', description: 'OpenRouter (free)' },
                   { id: 'claude-3.5-sonnet', label: 'Claude 3.5', description: 'OpenRouter' },
                 ].map((model) => (
                   <button

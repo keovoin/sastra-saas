@@ -35,7 +35,7 @@ export function EmployeeMovement() {
 
   const create = () => {
     if (!form.employeeName.trim()) { toast.error('Employee name required'); return }
-    const m: Movement = { id: crypto.randomUUID(), date: form.date || new Date().toISOString().split('T')[0], ...form }
+    const m: Movement = { id: crypto.randomUUID(), ...form, date: form.date || new Date().toISOString().split('T')[0] }
     setMovements(prev => [m, ...prev])
     setShowCreate(false)
     setForm({ employeeName: '', type: 'promotion', fromRole: '', fromDept: '', toRole: '', toDept: '', approvedBy: '', notes: '', date: '' })

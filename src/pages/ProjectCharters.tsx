@@ -1,6 +1,5 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useBusinessOS } from '@/context/BusinessContext'
-import type { Charter } from '@/context/BusinessContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,8 +9,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  Plus, FileText, X, Users, Calendar, Edit2, Trash2, Eye,
-  Target, Shield, Milestone, DollarSign, Link2, CheckSquare, Sparkles, Upload,
+  Plus, FileText, X, Users, Edit2, Trash2,
+  Target, Milestone, Sparkles, Upload,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAIJson } from '@/lib/ai'
@@ -41,7 +40,7 @@ interface FullCharter {
 
 
 export function ProjectCharters() {
-  const { charters, addCharter, deleteCharter, isAdmin } = useBusinessOS()
+  const { isAdmin } = useBusinessOS()
   const [localCharters, setLocalCharters] = useState<FullCharter[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [viewCharter, setViewCharter] = useState<FullCharter | null>(null)
