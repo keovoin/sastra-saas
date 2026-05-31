@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ArrowRightLeft, Plus, TrendingUp, Building2, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
+import { useData } from '@/context/DataContext'
 
 interface Movement {
   id: string
@@ -29,17 +30,30 @@ const TYPE_CONFIG = {
 
 
 export function EmployeeMovement() {
-  const [movements, setMovements] = useState<Movement[]>([])
+  const { movements: dbMovements, addMovement: ctxAddMovement, deleteMovement: ctxDeleteMovement } = useData()
+  const movements: Movement[] = dbMovements.map(m => ({
+    id: m.id, date: m.movement_date, employeeName: m.employee_name, type: m.movement_type as Movement['type'],
+    fromRole: m.from_role, fromDept: m.from_dept, toRole: m.to_role, toDept: m.to_dept,
+    approvedBy: m.approved_by, notes: m.notes,
+  }))
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ employeeName: '', type: 'promotion' as Movement['type'], fromRole: '', fromDept: '', toRole: '', toDept: '', approvedBy: '', notes: '', date: '' })
 
   const create = () => {
     if (!form.employeeName.trim()) { toast.error('Employee name required'); return }
-    const m: Movement = { id: crypto.randomUUID(), ...form, date: form.date || new Date().toISOString().split('T')[0] }
-    setMovements(prev => [m, ...prev])
+    ctxAddMovement({
+      employee_name: form.employeeName,
+      movement_type: form.type,
+      from_role: form.fromRole,
+      from_dept: form.fromDept,
+      to_role: form.toRole,
+      to_dept: form.toDept,
+      approved_by: form.approvedBy,
+      notes: form.notes,
+      movement_date: form.date || new Date().toISOString().split('T')[0],
+    })
     setShowCreate(false)
     setForm({ employeeName: '', type: 'promotion', fromRole: '', fromDept: '', toRole: '', toDept: '', approvedBy: '', notes: '', date: '' })
-    toast.success('Movement recorded')
   }
 
   return (

@@ -445,3 +445,82 @@ alter table public.risks add column if not exists controls text default '';
 
 -- Add triggers for new tables
 create trigger update_tasks_updated_at before update on public.tasks for each row execute function public.update_updated_at_column();
+
+
+
+-- ============================================================================
+-- 11. ADDITIONAL TABLES FOR PIPELINE, KPIs, AND INVOICES
+-- ============================================================================
+
+-- PIPELINE DEALS TABLE
+create table if not exists public.pipeline_deals (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  company text not null,
+  value numeric not null default 0,
+  contact text default '',
+  probability integer not null default 20,
+  next_action text default '',
+  stage text not null default 'lead',
+  assignee text default ''
+);
+alter table public.pipeline_deals enable row level security;
+create policy "Users can manage deals in own projects" on public.pipeline_deals for all
+  using (exists (select 1 from public.projects where projects.id = pipeline_deals.project_id and projects.owner_id = auth.uid()));
+alter publication supabase_realtime add table public.pipeline_deals;
+
+-- KPI METRICS TABLE
+create table if not exists public.kpi_metrics (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  name text not null,
+  unit text default '',
+  target numeric not null default 0
+);
+alter table public.kpi_metrics enable row level security;
+create policy "Users can manage kpis in own projects" on public.kpi_metrics for all
+  using (exists (select 1 from public.projects where projects.id = kpi_metrics.project_id and projects.owner_id = auth.uid()));
+
+-- KPI VALUES TABLE
+create table if not exists public.kpi_values (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  kpi_id uuid references public.kpi_metrics(id) on delete cascade not null,
+  week text not null,
+  value numeric not null default 0
+);
+alter table public.kpi_values enable row level security;
+create policy "Users can manage kpi values" on public.kpi_values for all
+  using (exists (select 1 from public.kpi_metrics inner join public.projects on projects.id = kpi_metrics.project_id where kpi_metrics.id = kpi_values.kpi_id and projects.owner_id = auth.uid()));
+
+-- INVOICES TABLE
+create table if not exists public.invoices (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  invoice_number text not null,
+  client text not null,
+  amount numeric not null default 0,
+  status text not null default 'pending' check (status in ('paid', 'pending', 'overdue')),
+  due_date date,
+  issued_date date,
+  remark text default '',
+  reference_id text default ''
+);
+alter table public.invoices enable row level security;
+create policy "Users can manage invoices in own projects" on public.invoices for all
+  using (exists (select 1 from public.projects where projects.id = invoices.project_id and projects.owner_id = auth.uid()));
+alter publication supabase_realtime add table public.invoices;
+
+-- Indexes for new tables
+create index idx_pipeline_deals_project on public.pipeline_deals(project_id);
+create index idx_kpi_metrics_project on public.kpi_metrics(project_id);
+create index idx_invoices_project on public.invoices(project_id);
+
+-- Updated_at triggers for new tables
+create trigger update_pipeline_deals_updated_at before update on public.pipeline_deals for each row execute function public.update_updated_at_column();
+create trigger update_invoices_updated_at before update on public.invoices for each row execute function public.update_updated_at_column();

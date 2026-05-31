@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { UserMinus, Plus, Sparkles, Trash2, CheckCircle2, Circle, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAIJson } from '@/lib/ai'
+import { useData } from '@/context/DataContext'
 
 interface ChecklistStep { id: string; title: string; completed: boolean; dueDate: string }
 interface Checklist { id: string; employeeName: string; department: string; lastDay: string; steps: ChecklistStep[]; createdAt: string }
@@ -27,7 +28,11 @@ const DEFAULT_TEMPLATE = [
 
 
 export function OffboardingChecklist() {
-  const [checklists, setChecklists] = useState<Checklist[]>([])
+  const { offboardingChecklists: dbChecklists, addOffboarding, updateOffboarding, deleteOffboarding } = useData()
+  const checklists = dbChecklists.map(c => ({
+    id: c.id, employeeName: c.employee_name, department: c.department,
+    lastDay: c.last_day || '', steps: c.steps as ChecklistStep[], createdAt: c.created_at,
+  }))
   const [showCreate, setShowCreate] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [form, setForm] = useState({ employeeName: '', department: '', lastDay: '' })
@@ -36,21 +41,23 @@ export function OffboardingChecklist() {
 
   const create = () => {
     if (!form.employeeName.trim()) { toast.error('Name required'); return }
-    const cl: Checklist = {
-      id: crypto.randomUUID(), employeeName: form.employeeName, department: form.department,
-      lastDay: form.lastDay || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-      steps: steps.map((title, i) => ({ id: crypto.randomUUID(), title, completed: false, dueDate: new Date(Date.now() + (i + 1) * 86400000).toISOString().split('T')[0] })),
-      createdAt: new Date().toISOString(),
-    }
-    setChecklists(prev => [cl, ...prev])
+    const stepsData = steps.map((title, i) => ({ id: crypto.randomUUID(), title, completed: false, dueDate: new Date(Date.now() + (i + 1) * 86400000).toISOString().split('T')[0] }))
+    addOffboarding({
+      employee_name: form.employeeName,
+      department: form.department,
+      last_day: form.lastDay || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      steps: stepsData,
+    })
     setShowCreate(false)
     setForm({ employeeName: '', department: '', lastDay: '' })
     setSteps(DEFAULT_TEMPLATE)
-    toast.success(`Offboarding checklist created for ${cl.employeeName}`)
   }
 
   const toggle = (clId: string, sId: string) => {
-    setChecklists(prev => prev.map(cl => cl.id === clId ? { ...cl, steps: cl.steps.map(s => s.id === sId ? { ...s, completed: !s.completed } : s) } : cl))
+    const cl = checklists.find(c => c.id === clId)
+    if (!cl) return
+    const updatedSteps = cl.steps.map(s => s.id === sId ? { ...s, completed: !s.completed } : s)
+    updateOffboarding(clId, { steps: updatedSteps })
   }
 
   const aiGen = async () => {
@@ -91,7 +98,7 @@ export function OffboardingChecklist() {
                 <div><CardTitle className="text-base">{cl.employeeName}</CardTitle><p className="text-sm text-muted-foreground">{cl.department} • Last day: {cl.lastDay}</p></div>
                 <div className="flex items-center gap-2">
                   <Badge variant={progress(cl) === 100 ? 'default' : 'secondary'}>{progress(cl)}%</Badge>
-                  <Button variant="ghost" size="sm" onClick={() => { setChecklists(prev => prev.filter(c => c.id !== cl.id)); toast.success('Removed') }}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => { deleteOffboarding(cl.id) }}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                 </div>
               </div>
               <div className="w-full bg-muted rounded-full h-2 mt-2"><div className="bg-red-500 h-2 rounded-full transition-all" style={{ width: `${progress(cl)}%` }} /></div>

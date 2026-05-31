@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Pipette, Plus, Sparkles, DollarSign, Users, GripVertical, Edit2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAI } from '@/lib/ai'
+import { useData } from '@/context/DataContext'
+import type { PipelineDeal } from '@/context/DataContext'
 
 interface Deal {
   id: string
@@ -16,8 +18,8 @@ interface Deal {
   contact: string
   probability: number
   nextAction: string
-  date: string
   stage: Stage
+  assignee: string
 }
 
 type Stage = 'lead' | 'qualified' | 'proposal' | 'negotiation' | 'closed-won' | 'closed-lost'
@@ -31,21 +33,14 @@ const STAGES: { id: Stage; label: string; color: string }[] = [
   { id: 'closed-lost', label: 'Closed Lost', color: 'bg-red-500/10 text-red-600 border-red-200' },
 ]
 
-const initialDeals: Deal[] = [
-  { id: '1', company: 'Acme Corp', value: 48000, contact: 'Sarah Chen', probability: 20, nextAction: 'Schedule discovery call', date: '2025-03-15', stage: 'lead' },
-  { id: '2', company: 'TechFlow Inc', value: 125000, contact: 'Marcus Rivera', probability: 40, nextAction: 'Send case study', date: '2025-03-12', stage: 'qualified' },
-  { id: '3', company: 'DataVault Systems', value: 85000, contact: 'Emily Watson', probability: 60, nextAction: 'Finalize proposal deck', date: '2025-03-10', stage: 'proposal' },
-  { id: '4', company: 'CloudNine Solutions', value: 200000, contact: 'James Park', probability: 75, nextAction: 'Negotiate payment terms', date: '2025-03-08', stage: 'negotiation' },
-  { id: '5', company: 'Quantum Analytics', value: 67000, contact: 'Lisa Thompson', probability: 90, nextAction: 'Process signed contract', date: '2025-02-28', stage: 'closed-won' },
-  { id: '6', company: 'NovaTech Labs', value: 35000, contact: 'Alex Kim', probability: 25, nextAction: 'Follow up next quarter', date: '2025-03-01', stage: 'lead' },
-  { id: '7', company: 'Meridian Health', value: 150000, contact: 'David Okafor', probability: 0, nextAction: 'Lost to competitor', date: '2025-02-20', stage: 'closed-lost' },
-  { id: '8', company: 'Synapse Digital', value: 92000, contact: 'Rachel Green', probability: 55, nextAction: 'Demo follow-up meeting', date: '2025-03-14', stage: 'proposal' },
-  { id: '9', company: 'Zenith AI', value: 175000, contact: 'Tom Harris', probability: 35, nextAction: 'Schedule technical deep-dive', date: '2025-04-02', stage: 'qualified' },
-  { id: '10', company: 'BlueShift Media', value: 42000, contact: 'Priya Patel', probability: 65, nextAction: 'Send SOW for review', date: '2025-04-05', stage: 'proposal' },
-]
+// Map DB deals to local shape
+function mapDeal(d: PipelineDeal): Deal {
+  return { id: d.id, company: d.company, value: d.value, contact: d.contact, probability: d.probability, nextAction: d.next_action, stage: d.stage as Stage, assignee: d.assignee }
+}
 
 export function SalesPipeline() {
-  const [deals, setDeals] = useState<Deal[]>(initialDeals)
+  const { deals: dbDeals, addDeal: ctxAddDeal, updateDeal: ctxUpdateDeal, deleteDeal: ctxDeleteDeal } = useData()
+  const deals = dbDeals.map(mapDeal)
   const [showForm, setShowForm] = useState(false)
   const [detailDeal, setDetailDeal] = useState<Deal | null>(null)
   const [aiLoading, setAiLoading] = useState<string | null>(null)
@@ -74,10 +69,12 @@ export function SalesPipeline() {
     e.preventDefault()
     const dealId = e.dataTransfer.getData('text/plain')
     if (dealId) {
-      setDeals(prev => prev.map(d => d.id === dealId ? { ...d, stage: stageId } : d))
       const deal = deals.find(d => d.id === dealId)
-      const stage = STAGES.find(s => s.id === stageId)
-      if (deal && deal.stage !== stageId) toast.success(`Moved ${deal.company} to ${stage?.label}`)
+      if (deal && deal.stage !== stageId) {
+        ctxUpdateDeal(dealId, { stage: stageId })
+        const stage = STAGES.find(s => s.id === stageId)
+        toast.success(`Moved ${deal.company} to ${stage?.label}`)
+      }
     }
     setDragOverStage(null)
     setDraggedDealId(null)
@@ -88,20 +85,17 @@ export function SalesPipeline() {
       toast.error('Please fill in company, value, and contact')
       return
     }
-    const deal: Deal = {
-      id: Date.now().toString(),
+    ctxAddDeal({
       company: newDeal.company,
       value: parseFloat(newDeal.value),
       contact: newDeal.contact,
       probability: parseInt(newDeal.probability) || 20,
-      nextAction: newDeal.nextAction || 'Schedule intro call',
-      date: new Date().toISOString().split('T')[0],
+      next_action: newDeal.nextAction || 'Schedule intro call',
       stage: 'lead',
-    }
-    setDeals(prev => [...prev, deal])
+      assignee: newDeal.assignee || '',
+    })
     setNewDeal({ company: '', value: '', contact: '', nextAction: '', probability: '', assignee: '' })
     setShowForm(false)
-    toast.success(`Added ${deal.company} to pipeline`)
   }
 
   const suggestNextAction = async (deal: Deal) => {
@@ -119,7 +113,8 @@ Suggest a specific, actionable next step to move this deal forward. Be concise (
     const result = await askAI(prompt)
     setAiLoading(null)
     if (result.success) {
-      setDeals(prev => prev.map(d => d.id === deal.id ? { ...d, nextAction: result.content.trim() } : d))
+      ctxUpdateDeal(deal.id, { next_action: result.content.trim() })
+      setDetailDeal({ ...deal, nextAction: result.content.trim() })
       toast.success('AI suggestion applied')
     } else {
       toast.error(result.error || 'AI request failed')
@@ -222,7 +217,7 @@ Suggest a specific, actionable next step to move this deal forward. Be concise (
                 )}
               </div>
               <DialogFooter>
-                <Button variant="outline" className="text-red-500" onClick={() => { setDeals(prev => prev.filter(d => d.id !== detailDeal.id)); setDetailDeal(null); toast.success('Deal removed') }}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+                <Button variant="outline" className="text-red-500" onClick={() => { ctxDeleteDeal(detailDeal.id); setDetailDeal(null) }}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
                 <Button variant="outline" onClick={() => setDetailDeal(null)}>Close</Button>
               </DialogFooter>
             </>

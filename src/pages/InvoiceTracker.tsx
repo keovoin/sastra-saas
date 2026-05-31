@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label'
 import { FileText, Plus, Sparkles, DollarSign, Clock, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAI } from '@/lib/ai'
+import { useData } from '@/context/DataContext'
+import type { Invoice as DbInvoice } from '@/context/DataContext'
 
 type InvoiceStatus = 'paid' | 'pending' | 'overdue'
 
@@ -22,23 +24,13 @@ interface Invoice {
   referenceId: string
 }
 
-
-const initialInvoices: Invoice[] = [
-  { id: '1', invoiceNumber: 'INV-001', client: 'Acme Corp', amount: 12500, status: 'paid', dueDate: '2025-02-28', issuedDate: '2025-02-01', remark: 'Q1 retainer', referenceId: 'PO-4521' },
-  { id: '2', invoiceNumber: 'INV-002', client: 'TechFlow Inc', amount: 8750, status: 'paid', dueDate: '2025-03-05', issuedDate: '2025-02-05', remark: 'Consulting phase 1', referenceId: 'PO-4533' },
-  { id: '3', invoiceNumber: 'INV-003', client: 'DataVault Systems', amount: 24000, status: 'pending', dueDate: '2025-04-20', issuedDate: '2025-03-20', remark: 'Platform license (annual)', referenceId: 'PO-4601' },
-  { id: '4', invoiceNumber: 'INV-004', client: 'CloudNine Solutions', amount: 15800, status: 'pending', dueDate: '2025-04-25', issuedDate: '2025-03-25', remark: '', referenceId: 'PO-4612' },
-  { id: '5', invoiceNumber: 'INV-005', client: 'Quantum Analytics', amount: 6200, status: 'overdue', dueDate: '2025-02-15', issuedDate: '2025-01-15', remark: 'Follow up sent', referenceId: '' },
-  { id: '6', invoiceNumber: 'INV-006', client: 'NovaTech Labs', amount: 31000, status: 'paid', dueDate: '2025-03-01', issuedDate: '2025-02-01', remark: 'Enterprise plan', referenceId: 'PO-4480' },
-  { id: '7', invoiceNumber: 'INV-007', client: 'Meridian Health', amount: 18500, status: 'overdue', dueDate: '2025-02-20', issuedDate: '2025-01-20', remark: 'Dispute in progress', referenceId: 'PO-4445' },
-  { id: '8', invoiceNumber: 'INV-008', client: 'Synapse Digital', amount: 9400, status: 'pending', dueDate: '2025-04-30', issuedDate: '2025-03-30', remark: 'Monthly subscription', referenceId: 'PO-4650' },
-  { id: '9', invoiceNumber: 'INV-009', client: 'Apex Ventures', amount: 42000, status: 'paid', dueDate: '2025-03-10', issuedDate: '2025-02-10', remark: 'Integration project', referenceId: 'PO-4501' },
-  { id: '10', invoiceNumber: 'INV-010', client: 'Horizon Labs', amount: 7800, status: 'pending', dueDate: '2025-05-01', issuedDate: '2025-04-01', remark: '', referenceId: 'PO-4670' },
-]
-
+function mapInvoice(i: DbInvoice): Invoice {
+  return { id: i.id, invoiceNumber: i.invoice_number, client: i.client, amount: i.amount, status: i.status as InvoiceStatus, dueDate: i.due_date || '', issuedDate: i.issued_date || '', remark: i.remark, referenceId: i.reference_id }
+}
 
 export function InvoiceTracker() {
-  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices)
+  const { invoices: dbInvoices, addInvoice: ctxAddInvoice, updateInvoice: ctxUpdateInvoice, deleteInvoice: ctxDeleteInvoice } = useData()
+  const invoices = dbInvoices.map(mapInvoice)
   const [showForm, setShowForm] = useState(false)
   const [aiInsight, setAiInsight] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
@@ -55,21 +47,18 @@ export function InvoiceTracker() {
       toast.error('Please fill in client, amount, and due date')
       return
     }
-    const invoice: Invoice = {
-      id: Date.now().toString(),
-      invoiceNumber: `INV-${String(invoices.length + 1).padStart(3, '0')}`,
+    ctxAddInvoice({
+      invoice_number: `INV-${String(invoices.length + 1).padStart(3, '0')}`,
       client: newInvoice.client,
       amount: parseFloat(newInvoice.amount),
       status: newInvoice.status,
-      dueDate: newInvoice.dueDate,
-      issuedDate: new Date().toISOString().split('T')[0],
+      due_date: newInvoice.dueDate,
+      issued_date: new Date().toISOString().split('T')[0],
       remark: newInvoice.remark,
-      referenceId: newInvoice.referenceId,
-    }
-    setInvoices(prev => [...prev, invoice])
+      reference_id: newInvoice.referenceId,
+    })
     setNewInvoice({ client: '', amount: '', dueDate: '', status: 'pending', remark: '', referenceId: '' })
     setShowForm(false)
-    toast.success(`Invoice ${invoice.invoiceNumber} created`)
   }
 
 
@@ -243,7 +232,7 @@ Keep it concise and actionable.`
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setInvoices(prev => prev.map(i => i.id === invoice.id ? { ...i, status: 'paid' } : i))
+                            ctxUpdateInvoice(invoice.id, { status: 'paid' })
                             toast.success(`${invoice.invoiceNumber} marked as paid`)
                           }}
                         >
