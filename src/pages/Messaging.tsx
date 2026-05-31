@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { MessageCircle, Plus, Send, Hash, Users, AtSign, Reply, Check, CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBusinessOS } from '@/context/BusinessContext'
+import { useData } from '@/context/DataContext'
+import type { Message as DbMessage, Channel as DbChannel } from '@/context/DataContext'
 
 interface Message {
   id: string
@@ -30,11 +32,14 @@ interface Channel {
 
 export function Messaging() {
   const { profile } = useBusinessOS()
-  const [channels, setChannels] = useState<Channel[]>([
-    { id: 'general', name: 'General', type: 'group', members: [], description: 'Company-wide announcements' },
-    { id: 'random', name: 'Random', type: 'group', members: [], description: 'Off-topic conversations' },
-  ])
-  const [messages, setMessages] = useState<Message[]>([])
+  const { messages: dbMessages, channels: dbChannels, sendMessage: ctxSendMessage, addChannel: ctxAddChannel } = useData()
+  const channels: Channel[] = dbChannels.length > 0
+    ? dbChannels.map(c => ({ id: c.id, name: c.name, type: c.type as Channel['type'], members: c.members, description: c.description }))
+    : [
+        { id: 'general', name: 'General', type: 'group', members: [], description: 'Company-wide announcements' },
+        { id: 'random', name: 'Random', type: 'group', members: [], description: 'Off-topic conversations' },
+      ]
+  const messages: Message[] = dbMessages.map(m => ({ id: m.id, channelId: m.channel_id, author: m.author_name, text: m.content, timestamp: m.created_at, replyTo: m.reply_to || undefined, readBy: [] }))
   const [activeChannel, setActiveChannel] = useState<string>('general')
   const [messageText, setMessageText] = useState('')
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -50,28 +55,27 @@ export function Messaging() {
 
   const sendMessage = () => {
     if (!messageText.trim()) return
-    const msg: Message = {
-      id: crypto.randomUUID(), channelId: activeChannel, author: currentUser,
-      text: messageText.trim(), timestamp: new Date().toISOString(),
-      replyTo: replyTo?.id, readBy: [currentUser],
-    }
-    setMessages(prev => [...prev, msg])
+    ctxSendMessage({
+      channel_id: activeChannel,
+      content: messageText.trim(),
+      author_name: currentUser,
+      reply_to: replyTo?.id,
+    })
     setMessageText('')
     setReplyTo(null)
   }
 
   const createChannel = () => {
     if (!channelForm.name.trim()) { toast.error('Channel name required'); return }
-    const ch: Channel = {
-      id: crypto.randomUUID(), name: channelForm.name.toLowerCase().replace(/\s+/g, '-'),
-      type: channelForm.type, members: channelForm.members ? channelForm.members.split(',').map(m => m.trim()) : [],
+    const name = channelForm.name.toLowerCase().replace(/\s+/g, '-')
+    ctxAddChannel({
+      name,
+      type: channelForm.type,
+      members: channelForm.members ? channelForm.members.split(',').map(m => m.trim()) : [],
       description: channelForm.description,
-    }
-    setChannels(prev => [...prev, ch])
-    setActiveChannel(ch.id)
+    })
     setShowCreateChannel(false)
     setChannelForm({ name: '', type: 'group', description: '', members: '' })
-    toast.success(`#${ch.name} created`)
   }
 
   const formatTime = (ts: string) => {
@@ -100,8 +104,8 @@ export function Messaging() {
                 className={`flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm transition-colors ${activeChannel === ch.id ? 'bg-accent font-medium' : 'hover:bg-accent/50 text-muted-foreground'}`}>
                 {ch.type === 'direct' ? <Users className="h-4 w-4 shrink-0" /> : <Hash className="h-4 w-4 shrink-0" />}
                 <span className="truncate">{ch.name}</span>
-                {messages.filter(m => m.channelId === ch.id && !m.readBy.includes(currentUser)).length > 0 && (
-                  <Badge className="ml-auto h-5 px-1.5 text-xs bg-violet-500 text-white">{messages.filter(m => m.channelId === ch.id && !m.readBy.includes(currentUser)).length}</Badge>
+                {messages.filter(m => m.channelId === ch.id).length > 0 && activeChannel !== ch.id && (
+                  <Badge className="ml-auto h-5 px-1.5 text-xs bg-violet-500 text-white">{messages.filter(m => m.channelId === ch.id).length}</Badge>
                 )}
               </button>
             ))}

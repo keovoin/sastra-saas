@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ClipboardCheck, Plus, Sparkles, Trash2, CheckCircle2, Circle, User, Calendar, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAIJson } from '@/lib/ai'
+import { useData } from '@/context/DataContext'
 
 interface ChecklistStep {
   id: string
@@ -40,7 +41,11 @@ const DEFAULT_TEMPLATE: string[] = [
 ]
 
 export function OnboardingChecklist() {
-  const [checklists, setChecklists] = useState<Checklist[]>([])
+  const { onboardingChecklists: dbChecklists, addOnboarding, updateOnboarding, deleteOnboarding } = useData()
+  const checklists = dbChecklists.map(c => ({
+    id: c.id, employeeName: c.employee_name, role: c.role,
+    startDate: c.start_date || '', steps: c.steps as ChecklistStep[], createdAt: c.created_at,
+  }))
   const [showCreate, setShowCreate] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [newChecklist, setNewChecklist] = useState({ employeeName: '', role: '', startDate: '' })
@@ -49,33 +54,30 @@ export function OnboardingChecklist() {
 
   const createChecklist = () => {
     if (!newChecklist.employeeName.trim()) { toast.error('Employee name required'); return }
-    const cl: Checklist = {
-      id: crypto.randomUUID(),
-      employeeName: newChecklist.employeeName,
+    const steps = customSteps.map((title, i) => ({
+      id: crypto.randomUUID(), title, completed: false,
+      dueDate: new Date(Date.now() + (i + 1) * 2 * 86400000).toISOString().split('T')[0],
+    }))
+    addOnboarding({
+      employee_name: newChecklist.employeeName,
       role: newChecklist.role,
-      startDate: newChecklist.startDate || new Date().toISOString().split('T')[0],
-      steps: customSteps.map((title, i) => ({
-        id: crypto.randomUUID(), title, completed: false,
-        dueDate: new Date(Date.now() + (i + 1) * 2 * 86400000).toISOString().split('T')[0],
-      })),
-      createdAt: new Date().toISOString(),
-    }
-    setChecklists(prev => [cl, ...prev])
+      start_date: newChecklist.startDate || new Date().toISOString().split('T')[0],
+      steps,
+    })
     setShowCreate(false)
     setNewChecklist({ employeeName: '', role: '', startDate: '' })
     setCustomSteps(DEFAULT_TEMPLATE)
-    toast.success(`Onboarding checklist created for ${cl.employeeName}`)
   }
 
   const toggleStep = (checklistId: string, stepId: string) => {
-    setChecklists(prev => prev.map(cl => cl.id === checklistId ? {
-      ...cl, steps: cl.steps.map(s => s.id === stepId ? { ...s, completed: !s.completed } : s)
-    } : cl))
+    const cl = checklists.find(c => c.id === checklistId)
+    if (!cl) return
+    const updatedSteps = cl.steps.map(s => s.id === stepId ? { ...s, completed: !s.completed } : s)
+    updateOnboarding(checklistId, { steps: updatedSteps })
   }
 
   const deleteChecklist = (id: string) => {
-    setChecklists(prev => prev.filter(cl => cl.id !== id))
-    toast.success('Checklist removed')
+    deleteOnboarding(id)
   }
 
   const aiGenerate = async () => {

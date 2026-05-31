@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { BusinessOSProvider } from '@/context/BusinessContext'
+import { DataProvider } from '@/context/DataContext'
 import { Analytics } from '@vercel/analytics/react'
 import { Layout } from '@/components/Layout'
 import { PrintView } from '@/components/PrintView'
@@ -87,10 +88,12 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
   return (
     <BusinessOSProvider session={session}>
-      <Layout currentPage={currentPage} onNavigate={setCurrentPage} onExport={handleExport}>
-        {renderPage()}
-      </Layout>
-      {printMode && <PrintView mode={printMode} onClose={() => setPrintMode(null)} />}
+      <DataProvider>
+        <Layout currentPage={currentPage} onNavigate={setCurrentPage} onExport={handleExport}>
+          {renderPage()}
+        </Layout>
+        {printMode && <PrintView mode={printMode} onClose={() => setPrintMode(null)} />}
+      </DataProvider>
     </BusinessOSProvider>
   )
 }
