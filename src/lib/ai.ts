@@ -12,7 +12,6 @@ export function isAIConfigured(): boolean {
 }
 
 // ─── AI Text Cleanup ─────────────────────────────────────────────────────────
-// Strips markdown formatting from AI responses for clean UI display
 export function cleanAIText(text: string): string {
   return text
     .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
@@ -44,6 +43,44 @@ function trackAIUsage() {
   localStorage.setItem(AI_USAGE_KEY, JSON.stringify(updated))
 }
 
+// ─── User-Friendly Error Messages ────────────────────────────────────────────
+// Maps technical errors to clean messages for end users
+function userFriendlyError(technicalError: string, statusCode?: number): string {
+  // Log technical error for admin debugging (console only)
+  console.error('[AI Error]', technicalError)
+
+  // Rate limiting
+  if (technicalError.includes('rate') || technicalError.includes('429') || statusCode === 429) {
+    return 'AI is busy right now. Please try again in a moment.'
+  }
+  // Auth errors
+  if (technicalError.includes('401') || technicalError.includes('auth') || technicalError.includes('invalid_api_key') || statusCode === 401) {
+    return 'AI connection issue. Please check your settings.'
+  }
+  // Model not found
+  if (technicalError.includes('model') && (technicalError.includes('not found') || technicalError.includes('does not exist'))) {
+    return 'AI model unavailable. Please try a different model in Settings.'
+  }
+  // Timeout
+  if (technicalError.includes('timeout') || technicalError.includes('timed out')) {
+    return 'AI took too long to respond. Please try again.'
+  }
+  // Network / CORS
+  if (technicalError.includes('fetch') || technicalError.includes('Network') || technicalError.includes('CORS')) {
+    return 'Unable to reach AI service. Please check your connection.'
+  }
+  // Provider errors (OpenRouter, Groq)
+  if (technicalError.includes('provider') || technicalError.includes('upstream')) {
+    return 'AI service temporarily unavailable. Please try again shortly.'
+  }
+  // Quota / billing
+  if (technicalError.includes('quota') || technicalError.includes('insufficient') || technicalError.includes('billing')) {
+    return 'AI usage limit reached. Please check your AI provider account.'
+  }
+  // Generic fallback — don't expose raw error to user
+  return 'Something went wrong with AI. Please try again.'
+}
+
 // ─── Proxy Detection ─────────────────────────────────────────────────────────
 function useProxy(): boolean {
   try {
@@ -62,11 +99,11 @@ export async function askAI(prompt: string): Promise<AIResponse> {
   const baseUrl = getStoredBaseUrl()
 
   if (!apiKey) {
-    return { success: false, content: '', error: 'No API key configured. Go to Settings to add one.' }
+    return { success: false, content: '', error: 'AI is not configured yet. Ask your admin to set it up in Settings.' }
   }
 
   if (!checkAIRateLimit()) {
-    return { success: false, content: '', error: 'Rate limit exceeded. Please wait a moment before trying again.' }
+    return { success: false, content: '', error: 'AI is busy right now. Please try again in a moment.' }
   }
 
   const cleanPrompt = sanitizeInput(prompt)
@@ -117,11 +154,11 @@ export async function askAI(prompt: string): Promise<AIResponse> {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      const errMsg = err?.error?.message
+      const technicalMsg = err?.error?.message
         || err?.error?.metadata?.raw
         || (typeof err?.error === 'string' ? err.error : null)
-        || `API error ${response.status}: ${response.statusText}`
-      return { success: false, content: '', error: errMsg }
+        || `HTTP ${response.status}`
+      return { success: false, content: '', error: userFriendlyError(technicalMsg, response.status) }
     }
 
     const data = await response.json()
@@ -130,19 +167,10 @@ export async function askAI(prompt: string): Promise<AIResponse> {
     return { success: true, content: cleanAIText(content) }
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') {
-      return { success: false, content: '', error: 'Request timed out after 30 seconds.' }
+      return { success: false, content: '', error: 'AI took too long to respond. Please try again.' }
     }
     const message = error instanceof Error ? error.message : 'Connection failed'
-    if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
-      return {
-        success: false,
-        content: '',
-        error: useProxy()
-          ? 'Proxy request failed. Make sure you are deployed on Vercel. For local dev, use Google AI Studio or OpenRouter (they support browser CORS).'
-          : 'CORS error. Enable "Use Proxy" in Settings (requires Vercel deployment) or switch to Google AI Studio / OpenRouter.',
-      }
-    }
-    return { success: false, content: '', error: message }
+    return { success: false, content: '', error: userFriendlyError(message) }
   }
 }
 
@@ -156,6 +184,6 @@ export async function askAIJson<T>(prompt: string): Promise<{ success: boolean; 
     const parsed = JSON.parse(jsonStr) as T
     return { success: true, data: parsed }
   } catch {
-    return { success: false, data: null, error: 'Failed to parse AI response as JSON' }
+    return { success: false, data: null, error: 'AI returned an unexpected format. Please try again.' }
   }
 }
