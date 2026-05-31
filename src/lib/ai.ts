@@ -17,9 +17,9 @@ function useProxy(): boolean {
   try {
     const setting = localStorage.getItem('sastra-ai-proxy')
     if (setting !== null) return setting === 'true'
-    // Default: use proxy unless using OpenRouter (which supports CORS natively)
+    // Default: use proxy unless using OpenRouter/Google (which support CORS natively)
     const baseUrl = localStorage.getItem('sastra-ai-url') || ''
-    if (baseUrl.includes('openrouter')) return false
+    if (baseUrl.includes('openrouter') || baseUrl.includes('generativelanguage.googleapis')) return false
     return true
   } catch { return true }
 }

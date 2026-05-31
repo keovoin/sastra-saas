@@ -18,7 +18,7 @@ export function getStoredApiKey(): string {
 }
 
 export function getStoredModel(): string {
-  try { return localStorage.getItem(API_MODEL_STORAGE) || 'gpt-4o-mini' } catch { return 'gpt-4o-mini' }
+  try { return localStorage.getItem(API_MODEL_STORAGE) || 'llama-3.3-70b-versatile' } catch { return 'llama-3.3-70b-versatile' }
 }
 
 export function getStoredBaseUrl(): string {
@@ -210,6 +210,7 @@ export function Settings() {
                 {[
                   { id: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1' },
                   { id: 'groq', label: 'Groq', url: 'https://api.groq.com/openai/v1' },
+                  { id: 'google', label: 'Google AI Studio', url: 'https://generativelanguage.googleapis.com/v1beta/openai' },
                   { id: 'together', label: 'Together AI', url: 'https://api.together.xyz/v1' },
                   { id: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1' },
                   { id: 'ollama', label: 'Ollama (Local)', url: 'http://localhost:11434/v1' },
@@ -220,8 +221,8 @@ export function Settings() {
                     onClick={() => {
                       setProvider(p.id)
                       if (p.url) setBaseUrl(p.url)
-                      // OpenRouter supports CORS natively — no proxy needed
-                      if (p.id === 'openrouter' || p.id === 'ollama') {
+                      // OpenRouter and Google AI Studio support CORS natively — no proxy needed
+                      if (p.id === 'openrouter' || p.id === 'ollama' || p.id === 'google') {
                         setProxyEnabled(false)
                         localStorage.setItem('sastra-ai-proxy', 'false')
                       } else if (p.id !== 'custom') {
@@ -288,13 +289,14 @@ export function Settings() {
               <Label>Model</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
-                  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Fast & cheap' },
-                  { id: 'gpt-4o', label: 'GPT-4o', description: 'Best quality' },
-                  { id: 'gpt-3.5-turbo', label: 'GPT-3.5', description: 'Legacy' },
-                  { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B', description: 'Groq/Together' },
-                  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', description: 'Groq' },
+                  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', description: 'Groq (free)' },
+                  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B', description: 'Groq (fast/free)' },
+                  { id: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 70B', description: 'Groq (reasoning)' },
                   { id: 'deepseek/deepseek-v4-flash:free', label: 'DeepSeek V4 Flash', description: 'OpenRouter (free)' },
-                  { id: 'claude-3.5-sonnet', label: 'Claude 3.5', description: 'OpenRouter' },
+                  { id: 'meta-llama/llama-4-scout:free', label: 'Llama 4 Scout', description: 'OpenRouter (free)' },
+                  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'Google AI Studio' },
+                  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'OpenAI (paid)' },
+                  { id: 'gpt-4o', label: 'GPT-4o', description: 'OpenAI (paid)' },
                 ].map((model) => (
                   <button
                     key={model.id}
