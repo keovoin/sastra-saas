@@ -352,11 +352,12 @@ export function Settings() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
                   { id: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Fast & cheap' },
-                  { id: 'gpt-4o', label: 'GPT-4o', description: 'Best quality' },
-                  { id: 'gpt-3.5-turbo', label: 'GPT-3.5', description: 'Legacy' },
-                  { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B', description: 'Groq/Together' },
-                  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', description: 'Groq' },
+                  { id: 'gpt-4o', label: 'GPT-4o', description: 'OpenAI (paid)' },
+                  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', description: 'Groq (free)' },
+                  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B', description: 'Groq (fast/free)' },
+                  { id: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 70B', description: 'Groq (reasoning)' },
                   { id: 'deepseek/deepseek-v4-flash:free', label: 'DeepSeek V4 Flash', description: 'OpenRouter (free)' },
+                  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'Google AI (free)' },
                   { id: 'claude-3.5-sonnet', label: 'Claude 3.5', description: 'OpenRouter' },
                 ].map((model) => (
                   <button
