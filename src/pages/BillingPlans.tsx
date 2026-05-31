@@ -45,9 +45,10 @@ const PLANS = [
 
 
 export function BillingPlans() {
-  const [currentPlan] = useState('free')
+  const { session, profile } = useBusinessOS()
+  const currentPlan = profile?.plan || 'free'
+  const planLabel = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)
   const [isLoading, setIsLoading] = useState(false)
-  const { session } = useBusinessOS()
 
   // Load Paddle.js
   useEffect(() => {
