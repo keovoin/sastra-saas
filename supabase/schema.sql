@@ -524,3 +524,78 @@ create index idx_invoices_project on public.invoices(project_id);
 -- Updated_at triggers for new tables
 create trigger update_pipeline_deals_updated_at before update on public.pipeline_deals for each row execute function public.update_updated_at_column();
 create trigger update_invoices_updated_at before update on public.invoices for each row execute function public.update_updated_at_column();
+
+
+-- ============================================================================
+-- 11. SAAS ADMIN PORTAL (Platform Owner)
+-- Run this AFTER the schema above. Adds superadmin role + plan tracking.
+-- ============================================================================
+
+-- Add plan + status + superadmin columns to profiles
+alter table public.profiles add column if not exists plan text not null default 'free' check (plan in ('free', 'pro', 'enterprise'));
+alter table public.profiles add column if not exists account_status text not null default 'active' check (account_status in ('active', 'suspended', 'banned'));
+alter table public.profiles add column if not exists is_superadmin boolean not null default false;
+alter table public.profiles add column if not exists email text default '';
+alter table public.profiles add column if not exists last_active_at timestamptz default now();
+alter table public.profiles add column if not exists paddle_customer_id text default '';
+
+-- Add plan to projects (workspace-level plan)
+alter table public.projects add column if not exists plan text not null default 'free' check (plan in ('free', 'pro', 'enterprise'));
+
+-- BILLING EVENTS TABLE (records Paddle webhook events)
+create table if not exists public.billing_events (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  user_id uuid references public.profiles(id) on delete set null,
+  event_type text not null,
+  plan text default '',
+  amount numeric default 0,
+  currency text default 'USD',
+  paddle_customer_id text default '',
+  raw_data jsonb default '{}'
+);
+alter table public.billing_events enable row level security;
+-- Only superadmins can read billing events
+create policy "Superadmins can view billing events" on public.billing_events for select
+  using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
+
+-- ADMIN AUDIT LOG (records admin actions)
+create table if not exists public.admin_audit_log (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  admin_id uuid references public.profiles(id) on delete set null,
+  action text not null,
+  target_type text default '',
+  target_id text default '',
+  details jsonb default '{}'
+);
+alter table public.admin_audit_log enable row level security;
+create policy "Superadmins can view audit log" on public.admin_audit_log for select
+  using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
+create policy "Superadmins can insert audit log" on public.admin_audit_log for insert
+  with check (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
+
+-- ─── SUPERADMIN ACCESS POLICIES ───────────────────────────────────────────
+-- Allow superadmins to view ALL profiles (for user management)
+create policy "Superadmins can view all profiles" on public.profiles for select
+  using (exists (select 1 from public.profiles p2 where p2.id = auth.uid() and p2.is_superadmin = true));
+
+-- Allow superadmins to update ALL profiles (for plan assignment / suspension)
+create policy "Superadmins can update all profiles" on public.profiles for update
+  using (exists (select 1 from public.profiles p2 where p2.id = auth.uid() and p2.is_superadmin = true));
+
+-- Allow superadmins to view ALL projects (workspace management)
+create policy "Superadmins can view all projects" on public.projects for select
+  using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
+
+-- Allow superadmins to update ALL projects (plan assignment)
+create policy "Superadmins can update all projects" on public.projects for update
+  using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
+
+-- ─── HOW TO MAKE YOURSELF SUPERADMIN ──────────────────────────────────────
+-- After running the above, run this with YOUR email to grant yourself access:
+--
+--   update public.profiles set is_superadmin = true
+--   where id = (select id from auth.users where email = 'YOUR_EMAIL@example.com');
+--
+-- ============================================================================

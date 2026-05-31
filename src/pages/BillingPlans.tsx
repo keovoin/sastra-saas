@@ -1,9 +1,9 @@
-import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CreditCard, Check, Star, Zap, Building2, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
+import { useBusinessOS } from '@/context/BusinessContext'
 
 const PLANS = [
   {
@@ -31,7 +31,9 @@ const PLANS = [
 
 
 export function BillingPlans() {
-  const [currentPlan] = useState('free')
+  const { profile } = useBusinessOS()
+  const currentPlan = profile?.plan || 'free'
+  const planLabel = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)
 
   return (
     <div className="space-y-6">
@@ -46,14 +48,14 @@ export function BillingPlans() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Current Plan</p>
-              <p className="text-xl font-bold">Free Plan</p>
+              <p className="text-xl font-bold">{planLabel} Plan</p>
             </div>
             <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">Active</Badge>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-4">
-            <div><p className="text-xs text-muted-foreground">Projects</p><p className="font-medium">1 / 1</p><div className="w-full bg-muted h-1.5 rounded mt-1"><div className="bg-violet-500 h-1.5 rounded w-full" /></div></div>
-            <div><p className="text-xs text-muted-foreground">Modules</p><p className="font-medium">5 / 5</p><div className="w-full bg-muted h-1.5 rounded mt-1"><div className="bg-amber-500 h-1.5 rounded w-full" /></div></div>
-            <div><p className="text-xs text-muted-foreground">Members</p><p className="font-medium">1 / 1</p><div className="w-full bg-muted h-1.5 rounded mt-1"><div className="bg-emerald-500 h-1.5 rounded w-full" /></div></div>
+            <div><p className="text-xs text-muted-foreground">Projects</p><p className="font-medium">{currentPlan === 'free' ? '1 / 1' : 'Unlimited'}</p><div className="w-full bg-muted h-1.5 rounded mt-1"><div className="bg-violet-500 h-1.5 rounded" style={{ width: currentPlan === 'free' ? '100%' : '30%' }} /></div></div>
+            <div><p className="text-xs text-muted-foreground">Modules</p><p className="font-medium">{currentPlan === 'free' ? '5 / 5' : 'All 21+'}</p><div className="w-full bg-muted h-1.5 rounded mt-1"><div className="bg-amber-500 h-1.5 rounded" style={{ width: currentPlan === 'free' ? '100%' : '40%' }} /></div></div>
+            <div><p className="text-xs text-muted-foreground">Members</p><p className="font-medium">{currentPlan === 'free' ? '1 / 1' : currentPlan === 'pro' ? 'Up to 25' : 'Unlimited'}</p><div className="w-full bg-muted h-1.5 rounded mt-1"><div className="bg-emerald-500 h-1.5 rounded" style={{ width: currentPlan === 'free' ? '100%' : '20%' }} /></div></div>
           </div>
         </CardContent>
       </Card>
