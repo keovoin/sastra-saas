@@ -1,9 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CreditCard, Check, Star, Zap, Building2, Receipt } from 'lucide-react'
+import { CreditCard, Check, Star, Zap, Building2, Receipt, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useBusinessOS } from '@/context/BusinessContext'
+
+// ─── Paddle Configuration ────────────────────────────────────────────────────
+const PADDLE_VENDOR_ID = 348843
+const PADDLE_CLIENT_TOKEN = 'live_3ea697cdc340b8680fe4a412f20'
+// Set your Price ID from Paddle dashboard (Catalog → Prices)
+// Replace this with your actual price ID after creating the product in Paddle
+const PADDLE_PRO_PRICE_ID = '' // e.g., 'pri_01j...' — you'll get this from Paddle dashboard
+
+declare global {
+  interface Window {
+    Paddle?: any
+  }
+}
 
 const PLANS = [
   {
@@ -32,6 +46,50 @@ const PLANS = [
 
 export function BillingPlans() {
   const [currentPlan] = useState('free')
+  const [isLoading, setIsLoading] = useState(false)
+  const { session } = useBusinessOS()
+
+  // Load Paddle.js
+  useEffect(() => {
+    if (window.Paddle) return
+    const script = document.createElement('script')
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
+    script.async = true
+    script.onload = () => {
+      if (window.Paddle) {
+        window.Paddle.Initialize({
+          token: PADDLE_CLIENT_TOKEN,
+          eventCallback: (event: any) => {
+            if (event.name === 'checkout.completed') {
+              toast.success('Payment successful! Welcome to Pro! 🎉')
+            } else if (event.name === 'checkout.closed') {
+              setIsLoading(false)
+            }
+          }
+        })
+      }
+    }
+    document.head.appendChild(script)
+  }, [])
+
+  const handleUpgrade = () => {
+    if (!PADDLE_PRO_PRICE_ID) {
+      toast.error('Payment not configured yet', {
+        description: 'The Pro plan price ID needs to be set. Go to Paddle Dashboard → Catalog → Create Product → Copy Price ID.'
+      })
+      return
+    }
+    if (!window.Paddle) {
+      toast.error('Payment system loading...', { description: 'Please try again in a moment.' })
+      return
+    }
+    setIsLoading(true)
+    window.Paddle.Checkout.open({
+      items: [{ priceId: PADDLE_PRO_PRICE_ID, quantity: 1 }],
+      customer: { email: session?.user?.email || '' },
+      customData: { userId: session?.user?.id || '' },
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -85,9 +143,12 @@ export function BillingPlans() {
               </ul>
               <Button className={`w-full ${plan.popular ? 'bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600' : ''}`}
                 variant={plan.disabled ? 'secondary' : plan.popular ? 'default' : 'outline'}
-                disabled={plan.disabled}
-                onClick={() => toast.info('Payment integration coming soon!')}>
-                {currentPlan === plan.id ? '✓ Current Plan' : plan.cta}
+                disabled={plan.disabled || isLoading}
+                onClick={() => {
+                  if (plan.id === 'pro') handleUpgrade()
+                  else if (plan.id === 'enterprise') toast.info('Contact us at support@sastratech.com')
+                }}>
+                {isLoading && plan.id === 'pro' ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Processing...</> : currentPlan === plan.id ? '✓ Current Plan' : plan.cta}
               </Button>
             </CardContent>
           </Card>
@@ -99,12 +160,13 @@ export function BillingPlans() {
       <Card>
         <CardHeader><CardTitle className="text-base">Payment Method</CardTitle></CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4 p-4 rounded-lg border border-dashed border-border text-center">
-            <CreditCard className="h-8 w-8 text-muted-foreground/30" />
+          <div className="flex items-center gap-4 p-4 rounded-lg border border-border">
+            <CreditCard className="h-8 w-8 text-violet-500" />
             <div className="text-left">
-              <p className="text-sm font-medium">Coming Soon — Stripe Integration</p>
-              <p className="text-xs text-muted-foreground">Payment processing will be available in a future update</p>
+              <p className="text-sm font-medium">Powered by Paddle</p>
+              <p className="text-xs text-muted-foreground">Secure payment processing. Accepts credit cards, PayPal, and local payment methods.</p>
             </div>
+            <Badge variant="secondary" className="ml-auto">Active</Badge>
           </div>
         </CardContent>
       </Card>
