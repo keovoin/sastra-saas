@@ -6,12 +6,13 @@ import { CreditCard, Check, Star, Zap, Building2, Receipt, Loader2 } from 'lucid
 import { toast } from 'sonner'
 import { useBusinessOS } from '@/context/BusinessContext'
 
-// ─── Paddle Configuration ────────────────────────────────────────────────────
-const PADDLE_VENDOR_ID = 348843
-const PADDLE_CLIENT_TOKEN = 'live_3ea697cdc340b8680fe4a412f20'
-// Set your Price ID from Paddle dashboard (Catalog → Prices)
-// Replace this with your actual price ID after creating the product in Paddle
-const PADDLE_PRO_PRICE_ID = '' // e.g., 'pri_01j...' — you'll get this from Paddle dashboard
+// ─── Paddle Configuration (configurable via Admin Portal → Billing) ──────────
+const getPaddleConfig = () => ({
+  vendorId: localStorage.getItem('sastra-paddle-vendor-id') || '348843',
+  clientToken: localStorage.getItem('sastra-paddle-client-token') || 'live_3ea697cdc340b8680fe4a412f20',
+  proPriceId: localStorage.getItem('sastra-paddle-pro-price') || '',
+  environment: localStorage.getItem('sastra-paddle-env') || 'production',
+})
 
 declare global {
   interface Window {
@@ -53,13 +54,17 @@ export function BillingPlans() {
   // Load Paddle.js
   useEffect(() => {
     if (window.Paddle) return
+    const cfg = getPaddleConfig()
     const script = document.createElement('script')
     script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
     script.async = true
     script.onload = () => {
       if (window.Paddle) {
+        if (cfg.environment === 'sandbox') {
+          try { window.Paddle.Environment.set('sandbox') } catch {}
+        }
         window.Paddle.Initialize({
-          token: PADDLE_CLIENT_TOKEN,
+          token: cfg.clientToken,
           eventCallback: (event: any) => {
             if (event.name === 'checkout.completed') {
               toast.success('Payment successful! Welcome to Pro! 🎉')
@@ -74,9 +79,10 @@ export function BillingPlans() {
   }, [])
 
   const handleUpgrade = () => {
-    if (!PADDLE_PRO_PRICE_ID) {
-      toast.error('Payment not configured yet', {
-        description: 'The Pro plan price ID needs to be set. Go to Paddle Dashboard → Catalog → Create Product → Copy Price ID.'
+    const cfg = getPaddleConfig()
+    if (!cfg.proPriceId) {
+      toast.error('Payment not available yet', {
+        description: 'Pro plan checkout is being set up. Please check back soon.'
       })
       return
     }
@@ -86,7 +92,7 @@ export function BillingPlans() {
     }
     setIsLoading(true)
     window.Paddle.Checkout.open({
-      items: [{ priceId: PADDLE_PRO_PRICE_ID, quantity: 1 }],
+      items: [{ priceId: cfg.proPriceId, quantity: 1 }],
       customer: { email: session?.user?.email || '' },
       customData: { userId: session?.user?.id || '' },
     })
