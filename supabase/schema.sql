@@ -576,21 +576,35 @@ create policy "Superadmins can insert audit log" on public.admin_audit_log for i
   with check (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
 
 -- ─── SUPERADMIN ACCESS POLICIES ───────────────────────────────────────────
+-- IMPORTANT: Use a SECURITY DEFINER function to check superadmin status.
+-- A policy on `profiles` that subqueries `profiles` causes INFINITE RECURSION
+-- which breaks ALL profile reads. The function bypasses RLS, avoiding recursion.
+
+create or replace function public.is_superadmin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select coalesce((select is_superadmin from public.profiles where id = auth.uid()), false);
+$$;
+
 -- Allow superadmins to view ALL profiles (for user management)
 create policy "Superadmins can view all profiles" on public.profiles for select
-  using (exists (select 1 from public.profiles p2 where p2.id = auth.uid() and p2.is_superadmin = true));
+  using (public.is_superadmin());
 
 -- Allow superadmins to update ALL profiles (for plan assignment / suspension)
 create policy "Superadmins can update all profiles" on public.profiles for update
-  using (exists (select 1 from public.profiles p2 where p2.id = auth.uid() and p2.is_superadmin = true));
+  using (public.is_superadmin());
 
 -- Allow superadmins to view ALL projects (workspace management)
 create policy "Superadmins can view all projects" on public.projects for select
-  using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
+  using (public.is_superadmin());
 
 -- Allow superadmins to update ALL projects (plan assignment)
 create policy "Superadmins can update all projects" on public.projects for update
-  using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_superadmin = true));
+  using (public.is_superadmin());
 
 -- ─── HOW TO MAKE YOURSELF SUPERADMIN ──────────────────────────────────────
 -- After running the above, run this with YOUR email to grant yourself access:
