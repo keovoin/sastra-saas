@@ -70,7 +70,7 @@ Paid invoices total: $${totalRevenue.toLocaleString()}
 Pending invoices: $${pendingAmount.toLocaleString()}
 Overdue invoices: $${overdueAmount.toLocaleString()}
 Total invoices: ${invoices.length}
-Average invoice value: $${Math.round(invoices.reduce((s, i) => s + i.amount, 0) / invoices.length).toLocaleString()}
+Average invoice value: $${(invoices.length ? Math.round(invoices.reduce((s, i) => s + i.amount, 0) / invoices.length) : 0).toLocaleString()}
 
 Recent clients: ${invoices.map(i => i.client).join(', ')}
 

@@ -613,3 +613,53 @@ create policy "Superadmins can update all projects" on public.projects for updat
 --   where id = (select id from auth.users where email = 'YOUR_EMAIL@example.com');
 --
 -- ============================================================================
+
+
+-- ============================================================================
+-- 12. WORKSPACE HELP DESK (Internal Team Support Tickets)
+-- Run this in Supabase SQL Editor after the schema above.
+-- ============================================================================
+
+create table if not exists public.tickets (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  project_id uuid references public.projects(id) on delete cascade not null,
+  subject text not null,
+  description text default '',
+  requester_name text not null default '',
+  requester_id uuid references public.profiles(id) on delete set null,
+  assignee text default '',
+  category text not null default 'general' check (category in ('it', 'hr', 'finance', 'facilities', 'general')),
+  priority text not null default 'medium' check (priority in ('low', 'medium', 'high', 'urgent')),
+  status text not null default 'new' check (status in ('new', 'assigned', 'in_progress', 'resolved', 'closed')),
+  due_date date
+);
+
+alter table public.tickets enable row level security;
+create policy "Users can manage tickets in own projects" on public.tickets for all
+  using (exists (select 1 from public.projects where projects.id = tickets.project_id and projects.owner_id = auth.uid()));
+alter publication supabase_realtime add table public.tickets;
+create index if not exists idx_tickets_project on public.tickets(project_id);
+
+create table if not exists public.ticket_replies (
+  id uuid not null default gen_random_uuid() primary key,
+  created_at timestamptz not null default now(),
+  ticket_id uuid references public.tickets(id) on delete cascade not null,
+  author_name text not null default '',
+  author_id uuid references public.profiles(id) on delete set null,
+  content text not null
+);
+
+alter table public.ticket_replies enable row level security;
+create policy "Users can manage ticket replies in own projects" on public.ticket_replies for all
+  using (exists (
+    select 1 from public.tickets
+    inner join public.projects on projects.id = tickets.project_id
+    where tickets.id = ticket_replies.ticket_id and projects.owner_id = auth.uid()
+  ));
+alter publication supabase_realtime add table public.ticket_replies;
+create index if not exists idx_ticket_replies_ticket on public.ticket_replies(ticket_id);
+
+create trigger update_tickets_updated_at before update on public.tickets
+  for each row execute function public.update_updated_at_column();

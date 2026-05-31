@@ -36,6 +36,7 @@ import { BillingPlans } from '@/pages/BillingPlans'
 import { StaffWorkload } from '@/pages/StaffWorkload'
 import { UserProfile } from '@/pages/UserProfile'
 import { RACIMatrix } from '@/pages/RACIMatrix'
+import { HelpDesk } from '@/pages/HelpDesk'
 import { AdminPortal } from '@/pages/AdminPortal'
 import { checkIsSuperadmin } from '@/lib/admin'
 import { AuthScreen } from '@/components/AuthScreen'
@@ -81,6 +82,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
       case 'ai-assistant': return <AIAssistant />
       case 'user-profile': return <UserProfile />
       case 'raci': return <RACIMatrix />
+      case 'help-desk': return <HelpDesk />
       case 'billing': return <BillingPlans />
       case 'profile': return <ProfilePage />
       case 'settings': return <Settings />
