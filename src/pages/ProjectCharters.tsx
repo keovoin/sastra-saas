@@ -34,6 +34,7 @@ interface FullCharter {
   signOff: { name: string; role: string; signed: boolean }[]
   teamMembers: string[]
   startDate: string
+  dueDate: string
   attachments: string[]
   createdAt: string
 }
@@ -51,7 +52,7 @@ export function ProjectCharters() {
     name: '', purpose: '', objectives: [], scope_in: [], scope_out: [],
     projectManager: '', pmAuthority: 'Full', sponsor: '', stakeholders: [],
     milestones: [], budget: '', risks: [], assumptions: [], dependencies: [],
-    signOff: [], teamMembers: [], startDate: '', attachments: [],
+    signOff: [], teamMembers: [], startDate: '', dueDate: '', attachments: [],
   })
 
   const [form, setForm] = useState(emptyCharter())
@@ -334,18 +335,29 @@ export function ProjectCharters() {
 
       {/* Edit Charter Dialog */}
       <Dialog open={!!editCharter} onOpenChange={() => setEditCharter(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           {editCharter && (
             <>
               <DialogHeader><DialogTitle>Edit Charter</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2"><Label>Name</Label><Input value={editCharter.name} onChange={e => setEditCharter({ ...editCharter, name: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Project Name</Label><Input value={editCharter.name} onChange={e => setEditCharter({ ...editCharter, name: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Purpose</Label><textarea className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editCharter.purpose} onChange={e => setEditCharter({ ...editCharter, purpose: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2"><Label>Sponsor</Label><Input value={editCharter.sponsor} onChange={e => setEditCharter({ ...editCharter, sponsor: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Budget</Label><Input value={editCharter.budget} onChange={e => setEditCharter({ ...editCharter, budget: e.target.value })} /></div>
                 </div>
-                <div className="space-y-2"><Label>Project Manager</Label><Input value={editCharter.projectManager} onChange={e => setEditCharter({ ...editCharter, projectManager: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2"><Label>Project Manager</Label><Input value={editCharter.projectManager} onChange={e => setEditCharter({ ...editCharter, projectManager: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>PM Authority</Label>
+                    <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editCharter.pmAuthority} onChange={e => setEditCharter({ ...editCharter, pmAuthority: e.target.value })}>
+                      <option value="Full">Full</option><option value="Limited">Limited</option><option value="Advisory">Advisory</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2"><Label>Start Date</Label><Input type="date" value={editCharter.startDate} onChange={e => setEditCharter({ ...editCharter, startDate: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Due Date</Label><Input type="date" value={editCharter.dueDate || ''} onChange={e => setEditCharter({ ...editCharter, dueDate: e.target.value })} /></div>
+                </div>
               </div>
               <DialogFooter><Button variant="outline" onClick={() => setEditCharter(null)}>Cancel</Button><Button onClick={saveEdit}>Save Changes</Button></DialogFooter>
             </>

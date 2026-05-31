@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Key, Eye, EyeOff, CheckCircle2, Sparkles, AlertTriangle, ExternalLink } from 'lucide-react'
+import { getAIUsage } from '@/lib/ai'
+import { getWorkspaceName, getWorkspaceLogo, setWorkspaceBranding } from '@/lib/workspace'
 
 // ─── API Configuration Storage Helpers ────────────────────────────────────────
 const API_KEY_STORAGE = 'sastra-ai-key'
@@ -42,11 +44,19 @@ export function Settings() {
     try {
       const setting = localStorage.getItem('sastra-ai-proxy')
       if (setting !== null) return setting === 'true'
-      // Default OFF for OpenRouter (supports CORS), ON for everything else
       const url = localStorage.getItem('sastra-ai-url') || ''
       return !url.includes('openrouter')
     } catch { return true }
   })
+
+  // ─── Workspace Branding State ───────────────────────────────────────────────
+  const [workspaceName, setWorkspaceName] = useState(() => getWorkspaceName())
+  const [workspaceLogo, setWorkspaceLogo] = useState(() => getWorkspaceLogo())
+
+  const saveWorkspace = () => {
+    setWorkspaceBranding(workspaceName, workspaceLogo)
+    toast.success('Workspace branding updated! Refresh to see changes in sidebar.')
+  }
 
   useEffect(() => {
     setApiKey(getStoredApiKey())
@@ -148,6 +158,43 @@ export function Settings() {
       </div>
 
       <div className="grid gap-6 max-w-2xl">
+        {/* ─── Workspace Branding ──────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Workspace Branding</CardTitle>
+            <CardDescription>Customize your workspace name and logo mark</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Workspace Name</Label>
+                <Input value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} placeholder="My Company" />
+              </div>
+              <div className="space-y-2">
+                <Label>Logo Mark (1-2 chars)</Label>
+                <Input value={workspaceLogo} onChange={e => setWorkspaceLogo(e.target.value.slice(0, 2))} placeholder="S" maxLength={2} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">{workspaceLogo || 'S'}</div>
+              <span className="text-lg font-bold">{workspaceName || 'Sastra'}</span>
+              <span className="text-xs text-muted-foreground ml-auto">Preview</span>
+            </div>
+            <Button size="sm" onClick={saveWorkspace}>Save Branding</Button>
+          </CardContent>
+        </Card>
+
+        {/* ─── AI Usage ────────────────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">AI Usage</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-lg bg-muted"><p className="text-xs text-muted-foreground">Today</p><p className="text-2xl font-bold">{getAIUsage().today}</p></div>
+              <div className="p-3 rounded-lg bg-muted"><p className="text-xs text-muted-foreground">All Time</p><p className="text-2xl font-bold">{getAIUsage().total}</p></div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ─── AI / OpenAI API Key ──────────────────────────────────────────────── */}
         <Card className="border-amber-200 dark:border-amber-800">
           <CardHeader>

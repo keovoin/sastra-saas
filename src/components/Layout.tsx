@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useBusinessOS } from '@/context/BusinessContext'
 import { useTheme } from '@/hooks/useTheme'
 import { InviteModal } from '@/components/InviteModal'
+import { getWorkspaceName, getWorkspaceLogo } from '@/lib/workspace'
 import { Button } from '@/components/ui/button'
 import {
   LayoutDashboard, Target, ShieldAlert, FileText, Settings,
@@ -154,12 +155,12 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           {(!sidebarCollapsed || mobileMenuOpen) && (
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">S</div>
-              <span className="text-lg font-bold tracking-tight">Sastra</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">{getWorkspaceLogo()}</div>
+              <span className="text-lg font-bold tracking-tight">{getWorkspaceName()}</span>
             </div>
           )}
           {sidebarCollapsed && !mobileMenuOpen && (
-            <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">S</div>
+            <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">{getWorkspaceLogo()}</div>
           )}
           {/* Mobile close button */}
           <button onClick={() => setMobileMenuOpen(false)} className="lg:hidden rounded-md p-1 text-muted-foreground hover:bg-accent">
