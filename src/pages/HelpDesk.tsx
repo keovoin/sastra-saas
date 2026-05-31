@@ -115,6 +115,10 @@ export function HelpDesk() {
     fetchTicketReplies(ticket.id)
   }
 
+  // Only show replies that belong to the currently open ticket
+  // (ticketReplies is shared state; realtime may append replies from other tickets)
+  const currentReplies = detailTicket ? ticketReplies.filter(r => r.ticket_id === detailTicket.id) : []
+
   const sendReply = () => {
     if (!detailTicket || !replyText.trim()) return
     addTicketReply({ ticket_id: detailTicket.id, content: replyText.trim(), author_name: currentUser })
@@ -140,7 +144,7 @@ Return JSON: {"category": "it"|"hr"|"finance"|"facilities"|"general", "priority"
   const aiDraftReply = async () => {
     if (!detailTicket) return
     setAiLoading(true)
-    const thread = ticketReplies.map(r => `${r.author_name}: ${r.content}`).join('\n')
+    const thread = currentReplies.map(r => `${r.author_name}: ${r.content}`).join('\n')
     const result = await askAI(
       `You are an internal support agent. Draft a helpful, professional reply to this ticket.
 Subject: ${detailTicket.subject}
@@ -157,7 +161,7 @@ Write only the reply text, concise and friendly.`
   const aiSummarize = async () => {
     if (!detailTicket) return
     setAiLoading(true)
-    const thread = ticketReplies.map(r => `${r.author_name}: ${r.content}`).join('\n')
+    const thread = currentReplies.map(r => `${r.author_name}: ${r.content}`).join('\n')
     const result = await askAI(
       `Summarize this support ticket thread in 2-3 sentences:\nSubject: ${detailTicket.subject}\nDescription: ${detailTicket.description}\n${thread}`
     )
@@ -381,9 +385,9 @@ Write only the reply text, concise and friendly.`
 
                 {/* Thread */}
                 <div>
-                  <p className="text-sm font-medium mb-2 flex items-center gap-1"><MessageSquare className="h-4 w-4" />Conversation ({ticketReplies.length})</p>
+                  <p className="text-sm font-medium mb-2 flex items-center gap-1"><MessageSquare className="h-4 w-4" />Conversation ({currentReplies.length})</p>
                   <div className="space-y-2 max-h-52 overflow-y-auto">
-                    {ticketReplies.map(r => (
+                    {currentReplies.map(r => (
                       <div key={r.id} className="flex gap-2">
                         <div className="h-7 w-7 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-[9px] text-white font-medium shrink-0">{r.author_name.split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
                         <div className="flex-1 min-w-0">
@@ -392,7 +396,7 @@ Write only the reply text, concise and friendly.`
                         </div>
                       </div>
                     ))}
-                    {ticketReplies.length === 0 && <p className="text-xs text-muted-foreground">No replies yet. Start the conversation.</p>}
+                    {currentReplies.length === 0 && <p className="text-xs text-muted-foreground">No replies yet. Start the conversation.</p>}
                   </div>
                   <div className="flex gap-2 mt-3">
                     <Input placeholder="Write a reply..." value={replyText} onChange={e => setReplyText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }} />

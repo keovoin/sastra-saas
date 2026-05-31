@@ -94,6 +94,7 @@ export function OnboardingChecklist() {
   }
 
   const getProgress = (cl: Checklist) => {
+    if (!cl.steps || cl.steps.length === 0) return 0
     const done = cl.steps.filter(s => s.completed).length
     return Math.round((done / cl.steps.length) * 100)
   }
