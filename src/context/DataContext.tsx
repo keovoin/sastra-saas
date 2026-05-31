@@ -46,6 +46,16 @@ export interface Channel {
   id: string; name: string; type: string; description: string
   created_by: string | null; members: string[]; created_at: string
 }
+export interface Ticket {
+  id: string; project_id: string; subject: string; description: string
+  requester_name: string; requester_id: string | null; assignee: string
+  category: string; priority: string; status: string; due_date: string | null
+  created_at: string; updated_at: string
+}
+export interface TicketReply {
+  id: string; ticket_id: string; author_name: string; author_id: string | null
+  content: string; created_at: string
+}
 
 
 // ─── Context Interface ───────────────────────────────────────────────────────
@@ -81,6 +91,13 @@ interface DataContextValue {
   channels: Channel[]
   sendMessage: (msg: { channel_id: string; content: string; author_name: string; reply_to?: string }) => Promise<void>
   addChannel: (ch: Omit<Channel, 'id' | 'created_at' | 'created_by'>) => Promise<void>
+  tickets: Ticket[]
+  ticketReplies: TicketReply[]
+  addTicket: (t: Omit<Ticket, 'id' | 'created_at' | 'updated_at' | 'project_id'>) => Promise<void>
+  updateTicket: (id: string, updates: Partial<Ticket>) => Promise<void>
+  deleteTicket: (id: string) => Promise<void>
+  fetchTicketReplies: (ticketId: string) => Promise<void>
+  addTicketReply: (reply: { ticket_id: string; content: string; author_name: string }) => Promise<void>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -105,12 +122,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [movements, setMovements] = useState<EmployeeMovement[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [channels, setChannels] = useState<Channel[]>([])
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [ticketReplies, setTicketReplies] = useState<TicketReply[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
 
   // ─── Fetch All Data ──────────────────────────────────────────────────────
 
   const fetchAll = useCallback(async (projectId: string) => {
-    const [tasksRes, dealsRes, invoicesRes, eventsRes, onbRes, offbRes, movRes] = await Promise.all([
+    const [tasksRes, dealsRes, invoicesRes, eventsRes, onbRes, offbRes, movRes, ticketsRes] = await Promise.all([
       supabase.from('tasks').select('*').eq('project_id', projectId).order('order'),
       supabase.from('pipeline_deals').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
       supabase.from('invoices').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
@@ -118,6 +137,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       supabase.from('onboarding_checklists').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
       supabase.from('offboarding_checklists').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
       supabase.from('employee_movements').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+      supabase.from('tickets').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
     ])
     if (tasksRes.data) setTasks(tasksRes.data as Task[])
     if (dealsRes.data) setDeals(dealsRes.data as PipelineDeal[])
@@ -126,6 +146,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (onbRes.data) setOnboardingChecklists(onbRes.data as OnboardingChecklist[])
     if (offbRes.data) setOffboardingChecklists(offbRes.data as OffboardingChecklist[])
     if (movRes.data) setMovements(movRes.data as EmployeeMovement[])
+    if (ticketsRes.data) setTickets(ticketsRes.data as Ticket[])
   }, [])
 
   const fetchChannels = useCallback(async () => {
@@ -148,6 +169,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } else {
       setTasks([]); setDeals([]); setInvoices([]); setCalendarEvents([])
       setOnboardingChecklists([]); setOffboardingChecklists([]); setMovements([])
+      setTickets([]); setTicketReplies([])
     }
   }, [activeProject?.id, fetchAll, fetchChannels])
 
@@ -176,6 +198,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
         if (payload.eventType === 'INSERT') setMessages(prev => prev.some(m => m.id === (payload.new as Message).id) ? prev : [...prev, payload.new as Message])
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `project_id=eq.${activeProject.id}` }, (payload) => {
+        if (payload.eventType === 'INSERT') setTickets(prev => prev.some(t => t.id === (payload.new as Ticket).id) ? prev : [payload.new as Ticket, ...prev])
+        else if (payload.eventType === 'UPDATE') setTickets(prev => prev.map(t => t.id === (payload.new as Ticket).id ? payload.new as Ticket : t))
+        else if (payload.eventType === 'DELETE') setTickets(prev => prev.filter(t => t.id !== (payload.old as { id: string }).id))
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_replies' }, (payload) => {
+        setTicketReplies(prev => prev.some(r => r.id === (payload.new as TicketReply).id) ? prev : [...prev, payload.new as TicketReply])
       })
       .subscribe()
 
@@ -396,6 +426,49 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     toast.success(`#${ch.name} created`)
   }, [session])
 
+  // ─── Ticket CRUD ───────────────────────────────────────────────────────────
+
+  const addTicket = useCallback(async (t: Omit<Ticket, 'id' | 'created_at' | 'updated_at' | 'project_id'>) => {
+    if (!activeProject) return
+    const tempId = crypto.randomUUID()
+    const optimistic = { id: tempId, ...t, project_id: activeProject.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Ticket
+    setTickets(prev => [optimistic, ...prev])
+    const { data, error } = await supabase.from('tickets').insert({ ...t, project_id: activeProject.id, requester_id: session?.user.id || null }).select().single()
+    if (error) { setTickets(prev => prev.filter(x => x.id !== tempId)); toast.error('Failed to create ticket', { description: error.message }); return }
+    setTickets(prev => prev.map(x => x.id === tempId ? data as Ticket : x))
+    toast.success('Ticket created')
+  }, [activeProject, session])
+
+  const updateTicket = useCallback(async (id: string, updates: Partial<Ticket>) => {
+    const prev = tickets.find(t => t.id === id)
+    if (!prev) return
+    setTickets(p => p.map(t => t.id === id ? { ...t, ...updates } : t))
+    const { error } = await supabase.from('tickets').update(updates).eq('id', id)
+    if (error) { setTickets(p => p.map(t => t.id === id ? prev : t)); toast.error('Failed to update ticket', { description: error.message }) }
+  }, [tickets])
+
+  const deleteTicket = useCallback(async (id: string) => {
+    const prev = tickets.find(t => t.id === id)
+    setTickets(p => p.filter(t => t.id !== id))
+    const { error } = await supabase.from('tickets').delete().eq('id', id)
+    if (error) { if (prev) setTickets(p => [prev, ...p]); toast.error('Failed to delete ticket', { description: error.message }); return }
+    toast.success('Ticket deleted')
+  }, [tickets])
+
+  const fetchTicketReplies = useCallback(async (ticketId: string) => {
+    const { data } = await supabase.from('ticket_replies').select('*').eq('ticket_id', ticketId).order('created_at')
+    if (data) setTicketReplies(data as TicketReply[])
+  }, [])
+
+  const addTicketReply = useCallback(async (reply: { ticket_id: string; content: string; author_name: string }) => {
+    const tempId = crypto.randomUUID()
+    const optimistic: TicketReply = { id: tempId, ticket_id: reply.ticket_id, author_name: reply.author_name, author_id: session?.user.id || null, content: reply.content, created_at: new Date().toISOString() }
+    setTicketReplies(prev => [...prev, optimistic])
+    const { data, error } = await supabase.from('ticket_replies').insert({ ticket_id: reply.ticket_id, content: reply.content, author_name: reply.author_name, author_id: session?.user.id || null }).select().single()
+    if (error) { setTicketReplies(prev => prev.filter(r => r.id !== tempId)); toast.error('Failed to send reply', { description: error.message }); return }
+    setTicketReplies(prev => prev.map(r => r.id === tempId ? data as TicketReply : r))
+  }, [session])
+
 
   // ─── Context Value ─────────────────────────────────────────────────────────
 
@@ -408,6 +481,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     offboardingChecklists, addOffboarding, updateOffboarding, deleteOffboarding,
     movements, addMovement, deleteMovement,
     messages, channels, sendMessage, addChannel,
+    tickets, ticketReplies, addTicket, updateTicket, deleteTicket, fetchTicketReplies, addTicketReply,
   }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
