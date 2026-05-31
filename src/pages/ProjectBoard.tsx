@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAIJson } from '@/lib/ai'
+import { getWorkspaceMembers, initDefaultMembers } from '@/lib/workspace'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Priority = 'P1' | 'P2' | 'P3' | 'P4'
@@ -71,6 +72,8 @@ const LABEL_COLORS = [
 
 
 export function ProjectBoard() {
+  initDefaultMembers()
+  const workspaceMembers = getWorkspaceMembers()
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS)
   const [tasks, setTasks] = useState<TaskCard[]>([
     { id: '1', title: 'Design new onboarding flow', description: 'Create wireframes and prototype for the user onboarding experience', assignee: 'Sarah Chen', priority: 'P1', labels: ['design', 'ux'], dueDate: '2025-04-15', comments: [{ id: 'c1', author: 'Marcus', text: 'Should we include social login?', date: '2025-03-20T10:00:00Z' }], columnId: 'in-progress', order: 0, createdAt: '2025-03-10T08:00:00Z' },
@@ -453,7 +456,10 @@ export function ProjectBoard() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Assignee</Label>
-                <Input placeholder="Name" value={newTask.assignee} onChange={e => setNewTask(p => ({ ...p, assignee: e.target.value }))} />
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={newTask.assignee} onChange={e => setNewTask(p => ({ ...p, assignee: e.target.value }))}>
+                  <option value="">Unassigned</option>
+                  {workspaceMembers.map(m => <option key={m.id} value={m.name}>{m.name} ({m.role})</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>Priority</Label>
@@ -586,7 +592,10 @@ export function ProjectBoard() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Assignee</Label>
-                    <Input value={editingTask.assignee} onChange={e => setEditingTask({ ...editingTask, assignee: e.target.value })} />
+                    <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editingTask.assignee} onChange={e => setEditingTask({ ...editingTask, assignee: e.target.value })}>
+                      <option value="">Unassigned</option>
+                      {workspaceMembers.map(m => <option key={m.id} value={m.name}>{m.name} ({m.role})</option>)}
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <Label>Priority</Label>

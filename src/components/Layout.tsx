@@ -154,8 +154,8 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           {(!sidebarCollapsed || mobileMenuOpen) && (
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">S</div>
-              <span className="text-lg font-bold tracking-tight">Sastra</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">{localStorage.getItem('sastra-workspace-logo') || 'S'}</div>
+              <span className="text-lg font-bold tracking-tight">{localStorage.getItem('sastra-workspace-name') || 'Sastra'}</span>
             </div>
           )}
           {sidebarCollapsed && !mobileMenuOpen && (

@@ -167,14 +167,16 @@ const categoryConfig: Record<SwotCategory, { label: string; icon: React.ElementT
 export function AIAssistant() {
   const { addSwotItem, isAdmin } = useBusinessOS()
   const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+  const [customIndustry, setCustomIndustry] = useState('')
   const [companyContext, setCompanyContext] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [suggestions, setSuggestions] = useState<typeof industrySuggestions[string] | null>(null)
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
 
   const handleGenerate = async () => {
-    if (!selectedIndustry) {
-      toast.error('Please select an industry')
+    const effectiveIndustry = customIndustry || selectedIndustry
+    if (!effectiveIndustry) {
+      toast.error('Please select an industry or enter a custom one')
       return
     }
 
@@ -189,7 +191,8 @@ export function AIAssistant() {
     if (apiKey) {
       // ─── Real AI Generation via OpenAI-compatible API ──────────────────────
       try {
-        const prompt = `You are a senior business strategy consultant. Perform a SWOT analysis for a company in the "${selectedIndustry}" industry.${companyContext ? ` Additional context: ${companyContext}` : ''}
+        const effectiveInd = customIndustry || selectedIndustry
+        const prompt = `You are a senior business strategy consultant. Perform a SWOT analysis for a company in the "${effectiveInd}" industry.${companyContext ? ` Additional context: ${companyContext}` : ''}
 
 Return EXACTLY this JSON format (no markdown, no code blocks, just raw JSON):
 {
@@ -238,15 +241,19 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
         console.error('OpenAI error:', error)
         toast.error('AI generation failed', { description: error.message || 'Falling back to built-in suggestions.' })
         // Fallback to built-in suggestions
-        const result = industrySuggestions[selectedIndustry]
-        setSuggestions(result)
+        const result = industrySuggestions[customIndustry || selectedIndustry]
+        if (result) setSuggestions(result)
       }
     } else {
       // ─── Built-in Suggestions (no API key) ─────────────────────────────────
       await new Promise((resolve) => setTimeout(resolve, 1500))
-      const result = industrySuggestions[selectedIndustry]
-      setSuggestions(result)
-      toast.success('Strategy suggestions generated!', { description: `Based on ${selectedIndustry} industry analysis. Add your OpenAI key in Settings for AI-powered suggestions.` })
+      const result = industrySuggestions[customIndustry || selectedIndustry]
+      if (result) {
+        setSuggestions(result)
+        toast.success('Strategy suggestions generated!', { description: `Based on ${customIndustry || selectedIndustry} industry analysis. Add your OpenAI key in Settings for AI-powered suggestions.` })
+      } else {
+        toast.error('No built-in data for custom industry', { description: 'Add an API key in Settings to generate AI-powered analysis for any industry.' })
+      }
     }
 
     setIsGenerating(false)
@@ -317,9 +324,9 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
                 return (
                   <button
                     key={industry}
-                    onClick={() => setSelectedIndustry(industry)}
+                    onClick={() => { setSelectedIndustry(industry); setCustomIndustry('') }}
                     className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-all ${
-                      selectedIndustry === industry
+                      selectedIndustry === industry && !customIndustry
                         ? 'border-primary bg-primary/5 ring-1 ring-primary font-medium'
                         : 'border-border hover:bg-accent/50'
                     }`}
@@ -329,6 +336,10 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
                   </button>
                 )
               })}
+            </div>
+            <div className="space-y-2 mt-3">
+              <Label>Or enter a custom industry:</Label>
+              <Input placeholder="e.g. AgriTech, Legal Tech, Aerospace..." value={customIndustry} onChange={e => { setCustomIndustry(e.target.value); if (e.target.value) setSelectedIndustry('') }} />
             </div>
           </div>
 
@@ -343,7 +354,7 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
             <p className="text-xs text-muted-foreground">Add context for more tailored suggestions.</p>
           </div>
 
-          <Button onClick={handleGenerate} disabled={!selectedIndustry || isGenerating} className="gap-2">
+          <Button onClick={handleGenerate} disabled={(!selectedIndustry && !customIndustry) || isGenerating} className="gap-2">
             {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {isGenerating ? 'Analyzing...' : 'Generate Suggestions'}
           </Button>
@@ -358,7 +369,7 @@ Each item should be a specific, actionable insight (1-2 sentences). Focus on cur
               <div className="h-16 w-16 rounded-full border-4 border-muted animate-spin border-t-primary" />
               <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-amber-500" />
             </div>
-            <p className="mt-4 text-sm font-medium">Analyzing {selectedIndustry} landscape...</p>
+            <p className="mt-4 text-sm font-medium">Analyzing {customIndustry || selectedIndustry} landscape...</p>
             <p className="text-xs text-muted-foreground mt-1">Generating strategic recommendations</p>
           </CardContent>
         </Card>

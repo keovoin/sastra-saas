@@ -156,6 +156,17 @@ export function BoardDeckGenerator() {
   const completedCount = sections.filter(s => s.content).length
   const aiReady = isAIConfigured()
 
+  const saveDeck = () => {
+    const deck = { sections: sections.filter(s => s.content), savedAt: new Date().toISOString(), company: context.companyName }
+    localStorage.setItem('sastra-board-deck', JSON.stringify(deck))
+    toast.success('Board deck saved!')
+  }
+
+  const copyDeck = () => {
+    const text = sections.filter(s => s.content).map(s => `## ${s.title}\n\n${s.content}`).join('\n\n---\n\n')
+    navigator.clipboard.writeText(text).then(() => toast.success('Copied to clipboard!')).catch(() => toast.error('Failed to copy'))
+  }
+
 
   return (
     <div className="space-y-6">
@@ -172,6 +183,12 @@ export function BoardDeckGenerator() {
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="secondary">{completedCount}/{sections.length} sections</Badge>
+          {completedCount > 0 && (
+            <>
+              <Button variant="outline" size="sm" onClick={saveDeck}>Save</Button>
+              <Button variant="outline" size="sm" onClick={copyDeck}>Copy</Button>
+            </>
+          )}
           {aiReady && (
             <Button onClick={generateFullDeck} disabled={generatingAll}>
               <Sparkles className="h-4 w-4 mr-2" />

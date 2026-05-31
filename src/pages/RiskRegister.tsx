@@ -47,10 +47,10 @@ export function RiskRegister() {
   const handleAISuggestRisks = async () => {
     setIsAILoading(true)
     const existingRisks = risks.map((r) => r.description).join('; ')
-    const result = await askAIJson<{ risks: Array<{ description: string; probability: number; impact: number; owner_name: string }> }>(
+    const result = await askAIJson<{ risks: Array<{ description: string; probability: number; impact: number; owner_name: string; mitigation: string; controls: string }> }>(
       `You are a risk management expert. Based on a tech company's existing risks: "${existingRisks || 'none yet'}",
-suggest 3 NEW risks the company should track. For each, provide description (1-2 sentences), probability (1-5), impact (1-5), and suggest an owner role.
-Format: {"risks": [{"description": "...", "probability": 3, "impact": 4, "owner_name": "CTO"}, ...]}`
+suggest 3 NEW risks the company should track. For each risk provide: description (1-2 sentences), probability (1-5), impact (1-5), suggested owner role, mitigation action (what to do to reduce the risk), and current controls (what's already in place).
+Return JSON: {"risks": [{"description": "...", "probability": 3, "impact": 4, "owner_name": "CTO", "mitigation": "Implement automated testing pipeline", "controls": "Manual code review process in place"}, ...]}`
     )
     setIsAILoading(false)
     if (result.success && result.data?.risks) {

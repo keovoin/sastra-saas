@@ -11,6 +11,37 @@ export function isAIConfigured(): boolean {
   return !!getStoredApiKey()
 }
 
+export function cleanAIText(text: string): string {
+  return text
+    .replace(/\*\*\*(.*?)\*\*\*/g, '$1')  // bold-italic
+    .replace(/\*\*(.*?)\*\*/g, '$1')       // bold
+    .replace(/\*(.*?)\*/g, '$1')           // italic
+    .replace(/^#{1,6}\s+/gm, '')           // headings
+    .replace(/^[-*+]\s+/gm, '• ')          // bullet points to clean dots
+    .replace(/^\d+\.\s+/gm, '')            // numbered lists
+    .replace(/`([^`]+)`/g, '$1')           // inline code
+    .replace(/\n{3,}/g, '\n\n')            // excessive newlines
+    .trim()
+}
+
+const AI_USAGE_KEY = 'sastra-ai-usage'
+
+export function getAIUsage(): { total: number; today: number; lastReset: string } {
+  try {
+    const data = JSON.parse(localStorage.getItem(AI_USAGE_KEY) || '{}')
+    const today = new Date().toISOString().split('T')[0]
+    if (data.lastReset !== today) return { total: data.total || 0, today: 0, lastReset: today }
+    return data
+  } catch { return { total: 0, today: 0, lastReset: new Date().toISOString().split('T')[0] } }
+}
+
+function trackAIUsage() {
+  const usage = getAIUsage()
+  const today = new Date().toISOString().split('T')[0]
+  const updated = { total: usage.total + 1, today: (usage.lastReset === today ? usage.today : 0) + 1, lastReset: today }
+  localStorage.setItem(AI_USAGE_KEY, JSON.stringify(updated))
+}
+
 // Check if proxy mode is enabled (needed for Groq, Together AI, etc)
 // OpenRouter supports direct browser CORS, so proxy is optional for it
 function useProxy(): boolean {
@@ -100,7 +131,8 @@ export async function askAI(prompt: string): Promise<AIResponse> {
 
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content || ''
-    return { success: true, content }
+    trackAIUsage()
+    return { success: true, content: cleanAIText(content) }
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') {
       return { success: false, content: '', error: 'Request timed out after 30 seconds.' }

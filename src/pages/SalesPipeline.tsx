@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Pipette, Plus, Sparkles, DollarSign, Users, GripVertical, Edit2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAIConfigured, askAI } from '@/lib/ai'
+import { getWorkspaceMembers, initDefaultMembers } from '@/lib/workspace'
 
 interface Deal {
   id: string
@@ -45,6 +46,8 @@ const initialDeals: Deal[] = [
 ]
 
 export function SalesPipeline() {
+  initDefaultMembers()
+  const workspaceMembers = getWorkspaceMembers()
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [showForm, setShowForm] = useState(false)
   const [detailDeal, setDetailDeal] = useState<Deal | null>(null)
@@ -194,7 +197,7 @@ Suggest a specific, actionable next step to move this deal forward. Be concise (
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2"><Label>Next Action</Label><Input placeholder="Schedule discovery call" value={newDeal.nextAction} onChange={e => setNewDeal(p => ({ ...p, nextAction: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>Assign To</Label><Input placeholder="Team member" value={newDeal.assignee} onChange={e => setNewDeal(p => ({ ...p, assignee: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Assign To</Label><select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={newDeal.assignee} onChange={e => setNewDeal(p => ({ ...p, assignee: e.target.value }))}><option value="">Unassigned</option>{workspaceMembers.map(m => <option key={m.id} value={m.name}>{m.name} ({m.role})</option>)}</select></div>
             </div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={addDeal}>Add to Pipeline</Button></DialogFooter>

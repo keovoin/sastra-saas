@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Key, Eye, EyeOff, CheckCircle2, Sparkles, AlertTriangle, ExternalLink } from 'lucide-react'
+import { getAIUsage } from '@/lib/ai'
+import { useBusinessOS } from '@/context/BusinessContext'
 
 // ─── API Configuration Storage Helpers ────────────────────────────────────────
 const API_KEY_STORAGE = 'sastra-ai-key'
@@ -30,6 +32,7 @@ export function getStoredProvider(): string {
 }
 
 export function Settings() {
+  const { isAdmin } = useBusinessOS()
   // ─── API Key State ──────────────────────────────────────────────────────────
   const [apiKey, setApiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
@@ -38,6 +41,8 @@ export function Settings() {
   const [provider, setProvider] = useState('openai')
   const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null)
   const [isTestingKey, setIsTestingKey] = useState(false)
+  const [workspaceName, setWorkspaceName] = useState(() => localStorage.getItem('sastra-workspace-name') || 'Sastra')
+  const [workspaceLogo, setWorkspaceLogo] = useState(() => localStorage.getItem('sastra-workspace-logo') || 'S')
   const [proxyEnabled, setProxyEnabled] = useState(() => {
     try {
       const setting = localStorage.getItem('sastra-ai-proxy')
@@ -68,6 +73,12 @@ export function Settings() {
       setIsKeyValid(null)
       toast.success('API key removed', { description: 'The AI Assistant will use built-in suggestions.' })
     }
+  }
+
+  const saveWorkspace = () => {
+    localStorage.setItem('sastra-workspace-name', workspaceName)
+    localStorage.setItem('sastra-workspace-logo', workspaceLogo)
+    toast.success('Workspace branding updated')
   }
 
   const handleTestKey = async () => {
@@ -148,6 +159,34 @@ export function Settings() {
       </div>
 
       <div className="grid gap-6 max-w-2xl">
+        {/* ─── Workspace Branding (Admin Only) ─────────────────────────────────── */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Workspace Branding</CardTitle>
+              <CardDescription>Customize your workspace name and logo mark.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Workspace Name</Label>
+                  <Input value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} placeholder="Company Name" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Logo Mark (1-2 characters)</Label>
+                  <Input value={workspaceLogo} onChange={e => setWorkspaceLogo(e.target.value.slice(0, 2))} placeholder="S" maxLength={2} />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">{workspaceLogo}</div>
+                <span className="text-lg font-bold">{workspaceName}</span>
+                <span className="text-xs text-muted-foreground ml-auto">Preview</span>
+              </div>
+              <Button size="sm" onClick={saveWorkspace}>Save Branding</Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ─── AI / OpenAI API Key ──────────────────────────────────────────────── */}
         <Card className="border-amber-200 dark:border-amber-800">
           <CardHeader>
@@ -352,6 +391,17 @@ export function Settings() {
                 <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ollama</a>, or any custom endpoint.
               </p>
               <p className="text-xs text-muted-foreground mt-1">Your key is stored <span className="font-medium">only in your browser</span>. Never sent to our servers.</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ─── AI Usage ──────────────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">AI Usage</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div><p className="text-xs text-muted-foreground">Today</p><p className="text-2xl font-bold">{getAIUsage().today}</p></div>
+              <div><p className="text-xs text-muted-foreground">All Time</p><p className="text-2xl font-bold">{getAIUsage().total}</p></div>
             </div>
           </CardContent>
         </Card>
