@@ -66,6 +66,8 @@ export function AdminPortal() {
         ? 'Checkout keys staged. Move secrets to env vars before going live.'
         : 'Saved. Add Seller ID + client token to enable checkout.',
     })
+  }
+
   // ─── Paddle Configuration (stored in localStorage) ─────────────────────────
   const [paddleConfig, setPaddleConfig] = useState({
     vendorId: localStorage.getItem('sastra-paddle-vendor-id') || '348843',
@@ -577,3 +579,5 @@ export function AdminPortal() {
     </div>
   )
 }
+
+
