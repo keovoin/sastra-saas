@@ -69,7 +69,7 @@ export function OffboardingChecklist() {
     else toast.error(r.error || 'Failed')
   }
 
-  const progress = (cl: Checklist) => Math.round((cl.steps.filter(s => s.completed).length / cl.steps.length) * 100)
+  const progress = (cl: Checklist) => (!cl.steps || cl.steps.length === 0) ? 0 : Math.round((cl.steps.filter(s => s.completed).length / cl.steps.length) * 100)
 
   return (
     <div className="space-y-6">
