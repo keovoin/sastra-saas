@@ -37,6 +37,7 @@ import { StaffWorkload } from '@/pages/StaffWorkload'
 import { UserProfile } from '@/pages/UserProfile'
 import { RACIMatrix } from '@/pages/RACIMatrix'
 import { HelpDesk } from '@/pages/HelpDesk'
+import { WorkspaceSettings } from '@/pages/WorkspaceSettings'
 import { AdminPortal } from '@/pages/AdminPortal'
 import { checkIsSuperadmin } from '@/lib/admin'
 import { AuthScreen } from '@/components/AuthScreen'
@@ -83,6 +84,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
       case 'user-profile': return <UserProfile />
       case 'raci': return <RACIMatrix />
       case 'help-desk': return <HelpDesk />
+      case 'workspace-settings': return <WorkspaceSettings />
       case 'billing': return <BillingPlans />
       case 'profile': return <ProfilePage />
       case 'settings': return <Settings />

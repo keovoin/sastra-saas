@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useBusinessOS } from '@/context/BusinessContext'
 import { useData } from '@/context/DataContext'
 import type { Message as DbMessage, Channel as DbChannel } from '@/context/DataContext'
+import { getWorkspaceMembers, initDefaultMembers, type WorkspaceMember } from '@/lib/workspace'
 
 interface Message {
   id: string
@@ -44,8 +45,11 @@ export function Messaging() {
   const [messageText, setMessageText] = useState('')
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
-  const [channelForm, setChannelForm] = useState({ name: '', type: 'group' as Channel['type'], description: '', members: '' })
+  const [channelForm, setChannelForm] = useState({ name: '', type: 'group' as Channel['type'], description: '', visibility: 'public' as 'public' | 'private', members: [] as string[] })
+  const [memberSearch, setMemberSearch] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const allMembers: WorkspaceMember[] = (() => { initDefaultMembers(); return getWorkspaceMembers() })()
 
   const currentUser = profile?.full_name || 'You'
   const activeChannelData = channels.find(c => c.id === activeChannel)
@@ -71,12 +75,26 @@ export function Messaging() {
     ctxAddChannel({
       name,
       type: channelForm.type,
-      members: channelForm.members ? channelForm.members.split(',').map(m => m.trim()) : [],
-      description: channelForm.description,
+      members: channelForm.members,
+      description: (channelForm.visibility === 'private' ? '🔒 ' : '') + channelForm.description,
     })
     setShowCreateChannel(false)
-    setChannelForm({ name: '', type: 'group', description: '', members: '' })
+    setChannelForm({ name: '', type: 'group', description: '', visibility: 'public', members: [] })
+    setMemberSearch('')
   }
+
+  const toggleMember = (identifier: string) => {
+    setChannelForm(p => ({
+      ...p,
+      members: p.members.includes(identifier) ? p.members.filter(m => m !== identifier) : [...p.members, identifier],
+    }))
+  }
+
+  const filteredMembers = allMembers.filter(m =>
+    !memberSearch ||
+    m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+    m.email.toLowerCase().includes(memberSearch.toLowerCase())
+  )
 
   const formatTime = (ts: string) => {
     const d = new Date(ts)
@@ -187,13 +205,38 @@ export function Messaging() {
           <DialogHeader><DialogTitle>Create Channel</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Channel Name *</Label><Input placeholder="project-updates" value={channelForm.name} onChange={e => setChannelForm(p => ({ ...p, name: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Type</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={channelForm.type} onChange={e => setChannelForm(p => ({ ...p, type: e.target.value as Channel['type'] }))}>
-                <option value="group">Group Channel</option><option value="direct">Direct Message</option><option value="forum">Forum (Threaded)</option>
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Type</Label>
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={channelForm.type} onChange={e => setChannelForm(p => ({ ...p, type: e.target.value as Channel['type'] }))}>
+                  <option value="group">Group Channel</option><option value="direct">Direct Message</option><option value="forum">Forum (Threaded)</option>
+                </select>
+              </div>
+              <div className="space-y-2"><Label>Visibility</Label>
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={channelForm.visibility} onChange={e => setChannelForm(p => ({ ...p, visibility: e.target.value as 'public' | 'private' }))}>
+                  <option value="public">Public (everyone)</option><option value="private">Private (invite only)</option>
+                </select>
+              </div>
             </div>
             <div className="space-y-2"><Label>Description</Label><Input value={channelForm.description} onChange={e => setChannelForm(p => ({ ...p, description: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Members (comma-separated)</Label><Input placeholder="alice, bob" value={channelForm.members} onChange={e => setChannelForm(p => ({ ...p, members: e.target.value }))} /></div>
+            <div className="space-y-2">
+              <Label>Add Members <span className="text-muted-foreground font-normal">({channelForm.members.length} selected)</span></Label>
+              <Input placeholder="Search by name or email..." value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
+              <div className="max-h-48 overflow-y-auto space-y-1 border border-border rounded-md p-1">
+                {filteredMembers.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center">No members found</p>}
+                {filteredMembers.map(m => {
+                  const selected = channelForm.members.includes(m.email)
+                  return (
+                    <button key={m.id} type="button" onClick={() => toggleMember(m.email)}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-left text-sm transition-colors ${selected ? 'bg-violet-50 dark:bg-violet-900/20' : 'hover:bg-accent/50'}`}>
+                      <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-[9px] text-white font-medium shrink-0">{m.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
+                      <div className="flex-1 min-w-0"><p className="truncate font-medium">{m.name}</p><p className="text-[10px] text-muted-foreground truncate">{m.email} • {m.department}</p></div>
+                      <div className={`h-4 w-4 rounded flex items-center justify-center shrink-0 ${selected ? 'bg-violet-500' : 'border border-border'}`}>{selected && <Check className="h-3 w-3 text-white" />}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Only members in your workspace can be added. To add someone new, invite them first.</p>
+            </div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setShowCreateChannel(false)}>Cancel</Button><Button onClick={createChannel}>Create</Button></DialogFooter>
         </DialogContent>

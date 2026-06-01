@@ -11,9 +11,10 @@ import {
   Activity, Sparkles, FileCheck, Swords, Calculator, Users2,
   BarChart3, Scale, GitBranch, Pipette, Heart, DollarSign, Presentation, Building2,
   KanbanSquare, ClipboardCheck, UserMinus, ArrowRightLeft, Calendar,
-  MessageCircle, CreditCard, UserCircle, Grid3X3, LifeBuoy,
+  MessageCircle, CreditCard, UserCircle, Grid3X3, LifeBuoy, ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { deptCanAccess, getUserWorkspaceProfile } from '@/lib/workspace'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -24,7 +25,7 @@ interface LayoutProps {
 
 interface NavGroup {
   label: string
-  items: { id: string; label: string; icon: any }[]
+  items: { id: string; label: string; icon: any; adminOnly?: boolean }[]
 }
 
 const navGroups: NavGroup[] = [
@@ -67,6 +68,7 @@ const navGroups: NavGroup[] = [
   ]},
   { label: 'Account', items: [
     { id: 'user-profile', label: 'My Profile', icon: UserCircle },
+    { id: 'workspace-settings', label: 'Workspace Settings', icon: ShieldCheck, adminOnly: true },
     { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]},
@@ -100,6 +102,7 @@ const breadcrumbMap: Record<string, string> = {
   'employee-movement': 'Employee Movements',
   workload: 'Staff Workload',
   'help-desk': 'Help Desk',
+  'workspace-settings': 'Workspace Settings',
   'ai-assistant': 'AI Assistant',
   'board-deck': 'Board Deck',
   activity: 'Activity Feed',
@@ -209,12 +212,22 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
 
         {/* Nav Links */}
         <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
-          {navGroups.map((group) => (
+          {navGroups.map((group) => {
+            // RBAC: hide admin-only items from non-admins, and hide modules
+            // the user's department can't access (admins always see everything)
+            const userDept = getUserWorkspaceProfile().department
+            const visibleItems = group.items.filter((item) => {
+              if (item.adminOnly && !isAdmin) return false
+              if (!isAdmin && userDept && !deptCanAccess(userDept, item.id)) return false
+              return true
+            })
+            if (visibleItems.length === 0) return null
+            return (
             <div key={group.label} className="mb-3">
               {(!sidebarCollapsed || mobileMenuOpen) && (
                 <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</p>
               )}
-              {group.items.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon
                 const isActive = currentPage === item.id
                 return (
@@ -227,7 +240,8 @@ export function Layout({ children, currentPage, onNavigate, onExport }: LayoutPr
                 )
               })}
             </div>
-          ))}
+            )
+          })}
         </nav>
 
         {/* Collapse Toggle (desktop only) */}
