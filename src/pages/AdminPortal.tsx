@@ -12,13 +12,15 @@ import {
 } from 'recharts'
 import {
   Shield, Users, Building2, CreditCard, BarChart3, Cog, Search,
-  TrendingUp, DollarSign, Activity, Loader2, Crown, Ban, CheckCircle2, Star, Zap,
+  TrendingUp, DollarSign, Activity, Loader2, Crown, Ban, CheckCircle2, Star, Zap, Save, KeyRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   fetchPlatformStats, fetchAllUsers, fetchAllWorkspaces, fetchBillingEvents,
   fetchSignupTrend, updateUserPlan, updateUserStatus, updateWorkspacePlan,
+  getPaddleConfig, savePaddleConfig, isPaddleConfigured,
   type PlatformStats, type AdminUser, type AdminWorkspace, type BillingEvent, type Plan, type AccountStatus,
+  type PaddleConfig,
 } from '@/lib/admin'
 
 type AdminTab = 'dashboard' | 'users' | 'workspaces' | 'billing' | 'analytics' | 'system'
@@ -52,6 +54,19 @@ export function AdminPortal() {
   // Manage dialogs
   const [editUser, setEditUser] = useState<AdminUser | null>(null)
   const [editWorkspace, setEditWorkspace] = useState<AdminWorkspace | null>(null)
+
+  // Paddle configuration (placeholder, persisted in localStorage for now)
+  const [paddle, setPaddle] = useState<PaddleConfig>(() => getPaddleConfig())
+  const setPaddleField = (field: keyof PaddleConfig, val: string) =>
+    setPaddle(prev => ({ ...prev, [field]: val }))
+  const handleSavePaddle = () => {
+    savePaddleConfig(paddle)
+    toast.success('Paddle configuration saved', {
+      description: isPaddleConfigured(paddle)
+        ? 'Checkout keys staged. Move secrets to env vars before going live.'
+        : 'Saved. Add Seller ID + client token to enable checkout.',
+    })
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -327,10 +342,75 @@ export function AdminPortal() {
           {/* ─── SYSTEM TAB ────────────────────────────────────────────────────── */}
           {tab === 'system' && (
             <div className="space-y-4 animate-fade-in-up">
+              {/* ─── Paddle Configuration (placeholder setup) ───────────────────── */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg bg-indigo-500/10 p-2"><CreditCard className="h-5 w-5 text-indigo-600" /></div>
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        Paddle Configuration
+                        <Badge className={isPaddleConfigured(paddle) ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}>
+                          {isPaddleConfigured(paddle) ? 'Configured' : 'Not configured'}
+                        </Badge>
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">Stage your Paddle billing keys. Placeholder setup — move secrets to env vars before going live.</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Environment toggle */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Environment</label>
+                    <div className="grid grid-cols-2 gap-2 max-w-xs">
+                      {(['sandbox', 'production'] as const).map(env => (
+                        <button key={env} onClick={() => setPaddleField('environment', env)}
+                          className={`rounded-lg border p-2 text-sm capitalize transition-all ${paddle.environment === env ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 ring-1 ring-violet-500' : 'border-border hover:bg-accent/50'}`}>
+                          {env}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Seller / Vendor ID</label>
+                      <Input value={paddle.sellerId} onChange={e => setPaddleField('sellerId', e.target.value)} placeholder="e.g. 123456" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Client-side Token</label>
+                      <Input value={paddle.clientToken} onChange={e => setPaddleField('clientToken', e.target.value)} placeholder="live_xxx / test_xxx" className="font-mono text-xs" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium flex items-center gap-1"><KeyRound className="h-3.5 w-3.5" />Webhook Secret</label>
+                      <Input type="password" value={paddle.webhookSecret} onChange={e => setPaddleField('webhookSecret', e.target.value)} placeholder="pdl_ntfset_..." className="font-mono text-xs" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Pro Plan Price ID</label>
+                      <Input value={paddle.proPriceId} onChange={e => setPaddleField('proPriceId', e.target.value)} placeholder="pri_xxx" className="font-mono text-xs" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Enterprise Plan Price ID</label>
+                      <Input value={paddle.enterprisePriceId} onChange={e => setPaddleField('enterprisePriceId', e.target.value)} placeholder="pri_xxx" className="font-mono text-xs" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      <span className="font-medium">Placeholder only.</span> These values are stored in your browser to stage configuration.
+                      For production, set <code className="font-mono">PADDLE_API_KEY</code> and <code className="font-mono">PADDLE_WEBHOOK_SECRET</code> as Vercel
+                      environment variables — the <code className="font-mono">/api/paddle-webhook</code> function reads them server-side.
+                    </p>
+                  </div>
+
+                  <Button size="sm" onClick={handleSavePaddle} className="gap-2"><Save className="h-4 w-4" />Save Configuration</Button>
+                </CardContent>
+              </Card>
+
               <Card><CardHeader><CardTitle className="text-base">Platform Health</CardTitle></CardHeader><CardContent className="space-y-3">
                 <div className="flex items-center justify-between p-3 rounded bg-muted/50"><span className="text-sm">Database (Supabase)</span><Badge className="bg-emerald-100 text-emerald-700"><CheckCircle2 className="h-3 w-3 mr-1" />Operational</Badge></div>
                 <div className="flex items-center justify-between p-3 rounded bg-muted/50"><span className="text-sm">AI Proxy (Vercel Edge)</span><Badge className="bg-emerald-100 text-emerald-700"><CheckCircle2 className="h-3 w-3 mr-1" />Operational</Badge></div>
-                <div className="flex items-center justify-between p-3 rounded bg-muted/50"><span className="text-sm">Payments (Paddle)</span><Badge className="bg-emerald-100 text-emerald-700"><CheckCircle2 className="h-3 w-3 mr-1" />Operational</Badge></div>
+                <div className="flex items-center justify-between p-3 rounded bg-muted/50"><span className="text-sm">Payments (Paddle)</span><Badge className={isPaddleConfigured(paddle) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>{isPaddleConfigured(paddle) ? <><CheckCircle2 className="h-3 w-3 mr-1" />Operational</> : 'Setup needed'}</Badge></div>
                 <div className="flex items-center justify-between p-3 rounded bg-muted/50"><span className="text-sm">Real-time Sync</span><Badge className="bg-emerald-100 text-emerald-700"><CheckCircle2 className="h-3 w-3 mr-1" />Operational</Badge></div>
               </CardContent></Card>
               <Card><CardHeader><CardTitle className="text-base">Quick Stats</CardTitle></CardHeader><CardContent>

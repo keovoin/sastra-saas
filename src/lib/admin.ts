@@ -178,3 +178,53 @@ export async function fetchSignupTrend(): Promise<{ week: string; signups: numbe
   }
   return weeks
 }
+
+
+// ─── Paddle Configuration (placeholder) ──────────────────────────────────────
+// Lightweight, client-stored placeholder so the platform owner can stage Paddle
+// settings from the Admin Portal before the secrets are wired into server env
+// vars / the paddle-webhook function. NOTE: secret values entered here are kept
+// in localStorage only and are NOT used to charge customers — production should
+// move these into Vercel environment variables.
+export interface PaddleConfig {
+  environment: 'sandbox' | 'production'
+  sellerId: string
+  clientToken: string
+  webhookSecret: string
+  proPriceId: string
+  enterprisePriceId: string
+}
+
+const PADDLE_CONFIG_KEY = 'sastra-paddle-config'
+
+const EMPTY_PADDLE_CONFIG: PaddleConfig = {
+  environment: 'sandbox',
+  sellerId: '',
+  clientToken: '',
+  webhookSecret: '',
+  proPriceId: '',
+  enterprisePriceId: '',
+}
+
+export function getPaddleConfig(): PaddleConfig {
+  try {
+    const raw = localStorage.getItem(PADDLE_CONFIG_KEY)
+    if (!raw) return { ...EMPTY_PADDLE_CONFIG }
+    return { ...EMPTY_PADDLE_CONFIG, ...(JSON.parse(raw) as Partial<PaddleConfig>) }
+  } catch {
+    return { ...EMPTY_PADDLE_CONFIG }
+  }
+}
+
+export function savePaddleConfig(config: PaddleConfig): void {
+  try {
+    localStorage.setItem(PADDLE_CONFIG_KEY, JSON.stringify(config))
+  } catch {
+    /* ignore quota / unavailable storage */
+  }
+}
+
+/** True once the minimum fields needed to initialize Paddle checkout are set. */
+export function isPaddleConfigured(config: PaddleConfig = getPaddleConfig()): boolean {
+  return Boolean(config.sellerId && config.clientToken)
+}

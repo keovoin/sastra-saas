@@ -39,6 +39,8 @@ import { RACIMatrix } from '@/pages/RACIMatrix'
 import { AdminPortal } from '@/pages/AdminPortal'
 import { checkIsSuperadmin } from '@/lib/admin'
 import { AuthScreen } from '@/components/AuthScreen'
+import { AcceptInvite } from '@/pages/AcceptInvite'
+import { WorkspaceProvider } from '@/context/WorkspaceContext'
 import { Toaster } from 'sonner'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import type { Session } from '@supabase/supabase-js'
@@ -90,12 +92,14 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
   return (
     <BusinessOSProvider session={session}>
-      <DataProvider>
-        <Layout currentPage={currentPage} onNavigate={setCurrentPage} onExport={handleExport}>
-          {renderPage()}
-        </Layout>
-        {printMode && <PrintView mode={printMode} onClose={() => setPrintMode(null)} />}
-      </DataProvider>
+      <WorkspaceProvider session={session}>
+        <DataProvider>
+          <Layout currentPage={currentPage} onNavigate={setCurrentPage} onExport={handleExport}>
+            {renderPage()}
+          </Layout>
+          {printMode && <PrintView mode={printMode} onClose={() => setPrintMode(null)} />}
+        </DataProvider>
+      </WorkspaceProvider>
     </BusinessOSProvider>
   )
 }
@@ -161,8 +165,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [showAuth, setShowAuth] = useState(false)
 
-  // Detect /admin route
-  const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+  // Detect special routes via pathname (keeps the existing /admin pattern)
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+  const isAdminRoute = pathname.startsWith('/admin')
+  const isAcceptInviteRoute = pathname.startsWith('/accept-invite')
+  const isWorkspaceRoute = pathname.startsWith('/w/')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -187,14 +194,28 @@ function App() {
     )
   }
 
+  // Accept-invite route — the Supabase invite link establishes a session in the
+  // URL; AcceptInvite handles the rest (set password, join, redirect).
+  if (isAcceptInviteRoute) {
+    return <><AcceptInvite /><Toaster position="bottom-right" richColors closeButton /></>
+  }
+
   // Admin route — requires login + superadmin
   if (isAdminRoute) {
     if (session) return <><AdminApp session={session} /><Toaster position="bottom-right" richColors closeButton /></>
     return <><AuthScreen /><Toaster position="bottom-right" richColors closeButton /></>
   }
 
+  // Authenticated app. The /w/{slug} route is resolved inside WorkspaceProvider
+  // (the active workspace is picked from the path); a logged-in user with no
+  // path still gets their default workspace, preserving existing behavior.
   if (session) return <><AuthenticatedApp session={session} /><Toaster position="bottom-right" richColors closeButton /><Analytics /><SpeedInsights /></>
   if (showAuth) return <><AuthScreen /><Toaster position="bottom-right" richColors closeButton /><Analytics /><SpeedInsights /></>
+
+  // Visiting a workspace URL while logged out should go straight to sign in.
+  if (isWorkspaceRoute) {
+    return <><AuthScreen /><Toaster position="bottom-right" richColors closeButton /><Analytics /><SpeedInsights /></>
+  }
 
   return (
     <>

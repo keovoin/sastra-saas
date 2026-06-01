@@ -55,6 +55,9 @@ export function Settings() {
   const [workspaceName, setWorkspaceName] = useState(() => getWorkspaceName())
   const [workspaceLogo, setWorkspaceLogo] = useState(() => getWorkspaceLogo())
 
+  // ─── AI Usage (refreshed on mount and after a successful test) ──────────────
+  const [usage, setUsage] = useState(() => getAIUsage())
+
   const saveWorkspace = () => {
     setWorkspaceBranding(workspaceName, workspaceLogo)
     toast.success('Workspace branding updated! Refresh to see changes in sidebar.')
@@ -65,6 +68,7 @@ export function Settings() {
     setSelectedModel(getStoredModel())
     setBaseUrl(getStoredBaseUrl())
     setProvider(getStoredProvider())
+    setUsage(getAIUsage())
     if (getStoredApiKey()) setIsKeyValid(true)
   }, [])
 
@@ -143,6 +147,7 @@ export function Settings() {
         toast.error('Connection failed', { description: msg })
       }
     }
+    setUsage(getAIUsage())
     setIsTestingKey(false)
   }
 
@@ -205,8 +210,8 @@ export function Settings() {
           <CardHeader><CardTitle className="text-base">AI Usage</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 rounded-lg bg-muted"><p className="text-xs text-muted-foreground">Today</p><p className="text-2xl font-bold">{getAIUsage().today}</p></div>
-              <div className="p-3 rounded-lg bg-muted"><p className="text-xs text-muted-foreground">All Time</p><p className="text-2xl font-bold">{getAIUsage().total}</p></div>
+              <div className="p-3 rounded-lg bg-muted"><p className="text-xs text-muted-foreground">Today</p><p className="text-2xl font-bold">{usage.today}</p></div>
+              <div className="p-3 rounded-lg bg-muted"><p className="text-xs text-muted-foreground">All Time</p><p className="text-2xl font-bold">{usage.total}</p></div>
             </div>
           </CardContent>
         </Card>
@@ -225,6 +230,18 @@ export function Settings() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* AI Usage summary (also shown in the standalone AI Usage card above) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Requests Today</p>
+                <p className="text-xl font-bold">{usage.today}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">All-Time Requests</p>
+                <p className="text-xl font-bold">{usage.total}</p>
+              </div>
+            </div>
+
             {/* Status Indicator */}
             <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
               isKeyValid === true ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30' :
@@ -271,19 +288,23 @@ export function Settings() {
               <Label>Provider</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
-                  { id: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1' },
-                  { id: 'groq', label: 'Groq', url: 'https://api.groq.com/openai/v1' },
-                  { id: 'together', label: 'Together AI', url: 'https://api.together.xyz/v1' },
-                  { id: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1' },
-                  { id: 'ollama', label: 'Ollama (Local)', url: 'http://localhost:11434/v1' },
-                  { id: 'custom', label: 'Custom', url: '' },
+                  { id: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+                  { id: 'groq', label: 'Groq', url: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+                  { id: 'together', label: 'Together AI', url: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+                  { id: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-v4-flash:free' },
+                  { id: 'ollama', label: 'Ollama (Local)', url: 'http://localhost:11434/v1', model: 'llama3' },
+                  { id: 'custom', label: 'Custom', url: '', model: '' },
                 ].map((p) => (
                   <button
                     key={p.id}
                     onClick={() => {
                       setProvider(p.id)
                       if (p.url) setBaseUrl(p.url)
-                      // OpenRouter supports CORS natively — no proxy needed
+                      // Default to a model the provider actually serves, so the
+                      // Test Connection / first request doesn't fail with
+                      // "model not found" (common when switching from OpenAI).
+                      if (p.model) setSelectedModel(p.model)
+                      // OpenRouter / Ollama support CORS natively — no proxy needed
                       if (p.id === 'openrouter' || p.id === 'ollama') {
                         setProxyEnabled(false)
                         localStorage.setItem('sastra-ai-proxy', 'false')
@@ -316,7 +337,7 @@ export function Settings() {
               />
               <p className="text-xs text-muted-foreground">
                 Must be OpenAI-compatible (supports /chat/completions endpoint).
-                {provider === 'groq' && <span className="block mt-1 text-amber-600">Note: "/openai/" in Groq's URL is just their compatibility path — it still uses YOUR Groq key and Groq models, not OpenAI.</span>}
+                {provider === 'groq' && <span className="block mt-1 text-amber-600">Heads up: the "/openai/" in <code className="font-mono">https://api.groq.com/openai/v1</code> is just Groq's OpenAI-<em>compatible</em> path. It still uses YOUR Groq API key and Groq models (e.g. Llama 3.3) — nothing is sent to OpenAI. This is the correct URL; keep it as-is.</span>}
               </p>
             </div>
 
