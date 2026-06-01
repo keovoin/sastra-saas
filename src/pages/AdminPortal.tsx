@@ -77,7 +77,7 @@ export function AdminPortal() {
     environment: localStorage.getItem('sastra-paddle-env') || 'production',
   })
 
-  const savePaddleConfig = () => {
+  const handleSavePaddleLocal = () => {
     localStorage.setItem('sastra-paddle-vendor-id', paddleConfig.vendorId)
     localStorage.setItem('sastra-paddle-client-token', paddleConfig.clientToken)
     localStorage.setItem('sastra-paddle-pro-price', paddleConfig.proPriceId)
@@ -382,7 +382,7 @@ export function AdminPortal() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={savePaddleConfig}>Save Paddle Config</Button>
+                    <Button size="sm" onClick={handleSavePaddleLocal}>Save Paddle Config</Button>
                     <Badge variant="secondary" className={paddleConfig.proPriceId ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
                       {paddleConfig.proPriceId ? 'Ready' : 'Price ID needed'}
                     </Badge>
