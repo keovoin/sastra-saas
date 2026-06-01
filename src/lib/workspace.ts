@@ -64,3 +64,36 @@ export function setWorkspaceBranding(name: string, logo: string): void {
   localStorage.setItem(WORKSPACE_NAME_KEY, name)
   localStorage.setItem(WORKSPACE_LOGO_KEY, logo)
 }
+
+
+// ─── Departments ─────────────────────────────────────────────────────────────
+// Used by the invite flow and member management UI.
+const DEFAULT_DEPARTMENTS = [
+  'Engineering',
+  'Product',
+  'Design',
+  'Marketing',
+  'Sales',
+  'Finance',
+  'Operations',
+  'People / HR',
+  'Customer Success',
+  'Legal',
+  'Executive',
+  'Other',
+]
+
+export function getDepartments(): string[] {
+  return DEFAULT_DEPARTMENTS
+}
+
+// ─── Slug helper ─────────────────────────────────────────────────────────────
+// Converts a workspace name into a URL-safe slug, e.g. "Acme Inc." -> "acme-inc".
+export function slugify(input: string): string {
+  const base = (input || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return base || 'workspace'
+}

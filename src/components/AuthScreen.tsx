@@ -5,15 +5,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react'
+import { Loader2, Mail, Lock, ArrowRight, Building2 } from 'lucide-react'
 
 type AuthMode = 'sign_in' | 'sign_up' | 'magic_link'
+
+// Handoff key read by WorkspaceContext to name the workspace created right
+// after signup (covers the email-confirmation case where there's no session yet).
+const PENDING_WORKSPACE_KEY = 'sastra-pending-workspace'
 
 export function AuthScreen() {
   const [mode, setMode] = useState<AuthMode>('sign_in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [workspaceName, setWorkspaceName] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -33,22 +38,38 @@ export function AuthScreen() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password) return
+    if (!workspaceName.trim()) {
+      toast.error('Please name your workspace')
+      return
+    }
 
     setIsLoading(true)
-    const { error } = await supabase.auth.signUp({
+
+    // Hand the desired workspace name to WorkspaceContext, which is the single
+    // source of truth for provisioning. It creates the workspace once the user
+    // has a session — this covers both the immediate-session case (email
+    // confirmation off) and the deferred case (confirmation on), and avoids a
+    // race that could create two workspaces.
+    try { localStorage.setItem(PENDING_WORKSPACE_KEY, workspaceName.trim()) } catch { /* noop */ }
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName || email },
+        data: { full_name: fullName || email, workspace_name: workspaceName.trim() },
       },
     })
+
     setIsLoading(false)
 
     if (error) {
+      try { localStorage.removeItem(PENDING_WORKSPACE_KEY) } catch { /* noop */ }
       toast.error('Sign up failed', { description: error.message })
+    } else if (data.session) {
+      toast.success('Workspace created!', { description: 'Welcome to Sastra.' })
     } else {
       toast.success('Account created!', {
-        description: 'Check your email for a confirmation link, or sign in directly if email confirmation is disabled.',
+        description: 'Check your email for a confirmation link to finish setting up your workspace.',
       })
       setMode('sign_in')
     }
@@ -85,12 +106,12 @@ export function AuthScreen() {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-lg">
               {mode === 'sign_in' && 'Welcome back'}
-              {mode === 'sign_up' && 'Create your account'}
+              {mode === 'sign_up' && 'Create your workspace'}
               {mode === 'magic_link' && 'Passwordless login'}
             </CardTitle>
             <CardDescription>
               {mode === 'sign_in' && 'Sign in to your workspace'}
-              {mode === 'sign_up' && 'Start managing your business operations'}
+              {mode === 'sign_up' && 'Start a brand-new workspace as its owner'}
               {mode === 'magic_link' && "We'll send you a login link via email"}
             </CardDescription>
           </CardHeader>
@@ -106,16 +127,34 @@ export function AuthScreen() {
               className="space-y-4"
             >
               {mode === 'sign_up' && (
-                <div className="space-y-2">
-                  <Label htmlFor="full-name">Full Name</Label>
-                  <Input
-                    id="full-name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
-                    disabled={isLoading}
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="workspace-name">Workspace Name</Label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        id="workspace-name"
+                        value={workspaceName}
+                        onChange={(e) => setWorkspaceName(e.target.value)}
+                        placeholder="Acme Inc."
+                        className="pl-10"
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400">You'll be the owner and can invite your team afterwards.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="full-name">Your Name</Label>
+                    <Input
+                      id="full-name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="John Doe"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </>
               )}
 
               <div className="space-y-2">
@@ -183,7 +222,7 @@ export function AuthScreen() {
                   <ArrowRight className="h-4 w-4" />
                 )}
                 {mode === 'sign_in' && 'Sign In'}
-                {mode === 'sign_up' && 'Create Account'}
+                {mode === 'sign_up' && 'Create Workspace'}
                 {mode === 'magic_link' && 'Send Magic Link'}
               </Button>
             </form>
@@ -224,7 +263,7 @@ export function AuthScreen() {
                     onClick={() => setMode('sign_up')}
                     className="w-full text-center text-sm text-slate-600 hover:text-slate-900 transition-colors"
                   >
-                    Don&apos;t have an account? <span className="font-medium">Sign up</span>
+                    Need a new workspace? <span className="font-medium">Create one</span>
                   </button>
                   <button
                     onClick={() => setMode('magic_link')}
@@ -232,6 +271,9 @@ export function AuthScreen() {
                   >
                     Or sign in with a magic link
                   </button>
+                  <p className="w-full text-center text-xs text-slate-400 pt-1">
+                    Joining an existing team? Open the invite link from your email.
+                  </p>
                 </>
               )}
               {mode === 'sign_up' && (
